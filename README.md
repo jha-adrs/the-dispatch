@@ -102,7 +102,12 @@ sudo caddy reload --config /etc/caddy/Caddyfile
 
 ## Create a routine
 
-See [`docs/routine-prompt.md`](./docs/routine-prompt.md) for the prompt template and setup walkthrough. Routines are created at [claude.ai/code/routines](https://claude.ai/code/routines). Minimum schedule interval is 1 hour; daily run caps apply (Pro 5, Max/Team/Enterprise 25).
+Two prompt templates, depending on whether your workspace allows custom connectors:
+
+- **With connector** (cleanest): [`docs/routine-prompt.md`](./docs/routine-prompt.md). Claude calls the MCP tools directly (`next_request`, `save_report`). Needs the connector registered on claude.ai (which may require admin approval in some orgs).
+- **Without connector** (no admin approval needed): [`docs/routine-prompt-no-connector.md`](./docs/routine-prompt-no-connector.md). The routine uses only built-in Claude Code tools (WebSearch/WebFetch/Bash) plus the curl-wrapping scripts in `scripts/`. Attach this repo to the routine, set `DISPATCH_URL` + `DISPATCH_TOKEN` env vars on the cloud environment, done.
+
+Routines are created at [claude.ai/code/routines](https://claude.ai/code/routines). Minimum schedule interval is 1 hour; daily run caps apply (Pro 5, Max/Team/Enterprise 25).
 
 ## Use the second client (optional)
 
