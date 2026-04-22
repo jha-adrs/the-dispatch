@@ -10,7 +10,7 @@ const slugSchema = z
   .string()
   .regex(/^[a-z0-9][a-z0-9-]{0,63}$/, 'topic_slug must be kebab-case, 1-64 chars');
 
-export function buildMcpServer({ db, archive, publicBaseUrl }) {
+export function buildMcpServer({ db, archive, publicBaseUrl, notifier }) {
   const server = new McpServer(
     { name: 'the-dispatch', version: '0.1.0' },
     { capabilities: { tools: {} } }
@@ -47,7 +47,7 @@ export function buildMcpServer({ db, archive, publicBaseUrl }) {
           ),
       },
     },
-    async (args) => saveReport(args, { db, archive, publicBaseUrl })
+    async (args) => saveReport(args, { db, archive, publicBaseUrl, notifier })
   );
 
   server.registerTool(
@@ -115,7 +115,7 @@ export function buildMcpServer({ db, archive, publicBaseUrl }) {
   return server;
 }
 
-async function saveReport(args, { db, archive, publicBaseUrl }) {
+async function saveReport(args, { db, archive, publicBaseUrl, notifier }) {
   const v = validate(args.markdown_body);
   if (!v.ok) return err(v.reason);
 
@@ -161,9 +161,23 @@ async function saveReport(args, { db, archive, publicBaseUrl }) {
     return err(`archive write failed after db commit: ${e.message}`);
   }
 
+  const reportUrl = `${publicBaseUrl.replace(/\/+$/, '')}/report/${id}`;
+
+  // Fire-and-forget notification. Errors are logged, never propagated.
+  if (notifier?.enabled) {
+    notifier.notify({
+      id,
+      url: reportUrl,
+      slug: args.topic_slug,
+      title: args.title,
+      summary,
+      word_count: reportRow.word_count,
+    });
+  }
+
   return ok({
     id,
-    url: `${publicBaseUrl.replace(/\/+$/, '')}/report/${id}`,
+    url: reportUrl,
     word_count: reportRow.word_count,
     sources_count: sources.length,
     fulfilled_request_ids: fulfilled,

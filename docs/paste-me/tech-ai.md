@@ -19,34 +19,116 @@ Parse `result.content[0].text` as JSON. Weave pending items in; keep ids for ste
 - WebFetch 3–6 primary sources in full — lab blogs (openai.com, anthropic.com, deepmind.google/blog, ai.meta.com), official filings (SEC, EU Commission), trade press (The Information, FT, Bloomberg wire). Not aggregators.
 - Cross-reference; flag where outlets report different numbers.
 
-## Step 4 — write to /tmp/dispatch.md
+## Step 4 — assemble /tmp/dispatch.md section-by-section
 
+**Do NOT write the whole briefing in one shot — the stream will time out.** One Bash call per section. Skip subsections with nothing material.
+
+```bash
+# 4a. Header
+cat > /tmp/dispatch.md <<'EOF'
+# <descriptive title — the biggest thing that happened>
+
+**Date:** <today>
+**TL;DR:** <2–3 sentences>
+
+EOF
 ```
-# {descriptive title — the biggest thing that happened}
 
-**Date:** {today}
-**TL;DR:**
-
+```bash
+# 4b. Key Findings: 5–8 bullets with company names, figures, dates
+cat >> /tmp/dispatch.md <<'EOF'
 ## Key Findings
-- 5–8 bullets with company names, figures, dates
 
+- ...
+
+EOF
+```
+
+```bash
+# 4c. Background
+cat >> /tmp/dispatch.md <<'EOF'
 ## Background
 
-## Detailed Analysis
-### Model & product releases
-### Capital & deals
-### Policy & regulation
-### Workforce & org
+...
 
-## What's New / Recent Developments
-
-## Open Questions & Disagreements
-
-## Sources
-1. {url} — {one-line}
+EOF
 ```
 
-1200–2500 words.
+Detailed Analysis — one Bash call per ### subsection:
+
+```bash
+# 4d-i. Model & product releases
+cat >> /tmp/dispatch.md <<'EOF'
+## Detailed Analysis
+
+### Model & product releases
+
+...
+
+EOF
+```
+
+```bash
+# 4d-ii. Capital & deals
+cat >> /tmp/dispatch.md <<'EOF'
+### Capital & deals
+
+...
+
+EOF
+```
+
+```bash
+# 4d-iii. Policy & regulation
+cat >> /tmp/dispatch.md <<'EOF'
+### Policy & regulation
+
+...
+
+EOF
+```
+
+```bash
+# 4d-iv. Workforce & org
+cat >> /tmp/dispatch.md <<'EOF'
+### Workforce & org
+
+...
+
+EOF
+```
+
+```bash
+# 4e. What's New / Recent Developments
+cat >> /tmp/dispatch.md <<'EOF'
+## What's New / Recent Developments
+
+...
+
+EOF
+```
+
+```bash
+# 4f. Open Questions & Disagreements
+cat >> /tmp/dispatch.md <<'EOF'
+## Open Questions & Disagreements
+
+...
+
+EOF
+```
+
+```bash
+# 4g. Sources
+cat >> /tmp/dispatch.md <<'EOF'
+## Sources
+
+1. <url> — <one-line>
+
+EOF
+```
+
+Total 1200–2500 words.
 
 ## Step 5 — file the dispatch
 

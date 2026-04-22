@@ -19,33 +19,87 @@ Parse `result.content[0].text` as JSON. If non-empty, weave pending `request_tex
 - WebFetch 3–6 primary sources in full (lab blogs, papers, official repos — not aggregators).
 - Cross-reference; note where sources disagree.
 
-## Step 4 — write to /tmp/dispatch.md
+## Step 4 — assemble /tmp/dispatch.md section-by-section
 
+**Do NOT write the whole briefing in one shot — the stream will time out.** Use one Bash tool call per section. Start fresh, then append.
+
+```bash
+# 4a. Header (title + date + TL;DR).
+cat > /tmp/dispatch.md <<'EOF'
+# <descriptive title — not just the topic name>
+
+**Date:** <today>
+**TL;DR:** <2–3 sentences, the single most important takeaway>
+
+EOF
 ```
-# {descriptive title — not just the topic name}
 
-**Date:** {today}
-**TL;DR:** {2–3 sentences, the single most important takeaway}
-
+```bash
+# 4b. Key Findings. 5–8 concrete bullets with numbers, names, dates.
+cat >> /tmp/dispatch.md <<'EOF'
 ## Key Findings
-- 5–8 concrete bullets with specifics (numbers, names, dates)
 
+- ...
+- ...
+
+EOF
+```
+
+```bash
+# 4c. Background. 1–2 paragraphs of context.
+cat >> /tmp/dispatch.md <<'EOF'
 ## Background
-1–2 paragraphs of context.
 
-## Detailed Analysis
-### {subsection}
 ...
 
-## What's New / Recent Developments
-
-## Open Questions & Disagreements
-
-## Sources
-1. {url} — {one-line description}
+EOF
 ```
 
-Target 1200–2500 words.
+```bash
+# 4d. Detailed Analysis — one Bash call per ### subsection.
+cat >> /tmp/dispatch.md <<'EOF'
+## Detailed Analysis
+
+### <subsection>
+
+...
+
+EOF
+```
+(repeat 4d once per subsection)
+
+```bash
+# 4e. What's New / Recent Developments.
+cat >> /tmp/dispatch.md <<'EOF'
+## What's New / Recent Developments
+
+...
+
+EOF
+```
+
+```bash
+# 4f. Open Questions & Disagreements.
+cat >> /tmp/dispatch.md <<'EOF'
+## Open Questions & Disagreements
+
+...
+
+EOF
+```
+
+```bash
+# 4g. Sources. Numbered, full URLs, one-line description each.
+cat >> /tmp/dispatch.md <<'EOF'
+## Sources
+
+1. <url> — <one-line description>
+...
+
+EOF
+```
+
+Target 1200–2500 words total across all sections. If a section has nothing material, skip the whole `cat >>` for it — don't pad.
 
 ## Step 5 — file the dispatch
 

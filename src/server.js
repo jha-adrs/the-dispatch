@@ -9,6 +9,7 @@ import { createArchive } from './archive.js';
 import { buildMcpServer, buildMcpTransport } from './mcp.js';
 import { mcpAuthMiddleware } from './auth.js';
 import { buildApiRouter } from './api.js';
+import { buildNotifier } from './notify.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -24,6 +25,9 @@ const env = {
   DB_PATH: process.env.DB_PATH || join(ROOT, 'reports.db'),
   ARCHIVE_DIR: process.env.ARCHIVE_DIR || join(ROOT, 'archive'),
   PUBLIC_BASE_URL: process.env.PUBLIC_BASE_URL || `http://localhost:${process.env.PORT || 8787}`,
+  NOTIFY_WEBHOOK_URL: process.env.NOTIFY_WEBHOOK_URL || '',
+  NOTIFY_WEBHOOK_TYPE: process.env.NOTIFY_WEBHOOK_TYPE || 'generic',
+  NOTIFY_WEBHOOK_HEADERS: process.env.NOTIFY_WEBHOOK_HEADERS || '',
 };
 
 function required(name) {
@@ -38,6 +42,14 @@ function required(name) {
 async function main() {
   const db = openDb(env.DB_PATH);
   const archive = createArchive(env.ARCHIVE_DIR);
+  const notifier = buildNotifier({
+    url: env.NOTIFY_WEBHOOK_URL,
+    type: env.NOTIFY_WEBHOOK_TYPE,
+    headersJson: env.NOTIFY_WEBHOOK_HEADERS,
+  });
+  if (notifier.enabled) {
+    console.log(`[dispatch] notify webhook: ${env.NOTIFY_WEBHOOK_URL.slice(0, 40)}… (type=${notifier.type})`);
+  }
 
   const app = express();
   app.disable('x-powered-by');
@@ -55,7 +67,7 @@ async function main() {
     console.log(
       `[mcp] POST client=${req.mcpClient} body-bytes=${req.headers['content-length'] || 0}`
     );
-    const server = buildMcpServer({ db, archive, publicBaseUrl: env.PUBLIC_BASE_URL });
+    const server = buildMcpServer({ db, archive, publicBaseUrl: env.PUBLIC_BASE_URL, notifier });
     const transport = buildMcpTransport();
     res.on('close', () => {
       transport.close().catch(() => {});

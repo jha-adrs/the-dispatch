@@ -19,31 +19,85 @@ Parse `result.content[0].text` as JSON. Weave pending items in; keep ids for ste
 - WebFetch 3–6 primary sources in full (release notes, posts, papers — not aggregators).
 - Cross-reference.
 
-## Step 4 — write to /tmp/dispatch.md
+## Step 4 — assemble /tmp/dispatch.md section-by-section
 
+**Do NOT write the whole briefing in one shot — the stream will time out.** One Bash tool call per section.
+
+```bash
+# 4a. Header
+cat > /tmp/dispatch.md <<'EOF'
+# <descriptive title>
+
+**Date:** <today>
+**TL;DR:** <2–3 sentences>
+
+EOF
 ```
-# {descriptive title}
 
-**Date:** {today}
-**TL;DR:** {2–3 sentences}
-
+```bash
+# 4b. Key Findings (5–8 bullets with specifics)
+cat >> /tmp/dispatch.md <<'EOF'
 ## Key Findings
-- 5–8 concrete bullets with specifics
 
+- ...
+
+EOF
+```
+
+```bash
+# 4c. Background
+cat >> /tmp/dispatch.md <<'EOF'
 ## Background
 
-## Detailed Analysis
-### {subsection}
+...
 
-## What's New / Recent Developments
-
-## Open Questions & Disagreements
-
-## Sources
-1. {url} — {one-line}
+EOF
 ```
 
-1200–2500 words.
+```bash
+# 4d. Detailed Analysis — one Bash call per ### subsection
+cat >> /tmp/dispatch.md <<'EOF'
+## Detailed Analysis
+
+### <subsection>
+
+...
+
+EOF
+```
+(repeat 4d per subsection)
+
+```bash
+# 4e. What's New / Recent Developments
+cat >> /tmp/dispatch.md <<'EOF'
+## What's New / Recent Developments
+
+...
+
+EOF
+```
+
+```bash
+# 4f. Open Questions & Disagreements
+cat >> /tmp/dispatch.md <<'EOF'
+## Open Questions & Disagreements
+
+...
+
+EOF
+```
+
+```bash
+# 4g. Sources
+cat >> /tmp/dispatch.md <<'EOF'
+## Sources
+
+1. <url> — <one-line>
+
+EOF
+```
+
+Total 1200–2500 words. Skip any section that genuinely has nothing.
 
 ## Step 5 — file the dispatch
 

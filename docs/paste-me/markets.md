@@ -19,37 +19,116 @@ Parse `result.content[0].text` as JSON. Weave pending items in; keep ids for ste
 - WebFetch 3–6 primary sources: BSE/NSE exchange pages, AMFI for fund flows, RBI for governor remarks, company disclosures for earnings moves.
 - Cross-reference the numbers.
 
-## Step 4 — write to /tmp/dispatch.md
+## Step 4 — assemble /tmp/dispatch.md section-by-section
 
+**Do NOT write the whole briefing in one shot — the stream will time out.** One Bash call per section.
+
+```bash
+# 4a. Header
+cat > /tmp/dispatch.md <<'EOF'
+# Indian markets close — <today> (<descriptor, e.g. "RBI focus" or "IT drag">)
+
+**Date:** <today>
+**TL;DR:** <Lead with index direction + magnitude + the biggest driver, 2–3 sentences>
+
+EOF
 ```
-# Indian markets close — {today} ({descriptor, e.g. "RBI focus" or "IT drag"})
 
-**Date:** {today}
-**TL;DR:** {Lead with index direction + magnitude + the biggest driver, 2–3 sentences}
-
+```bash
+# 4b. Key Findings: 5–8 bullets. Index closes with %, gainers/losers, FII ₹X cr, DII ₹X cr, headline macro item.
+cat >> /tmp/dispatch.md <<'EOF'
 ## Key Findings
-- Index closes with %, top gainers/losers, sectoral moves
-- FII ₹X cr net, DII ₹X cr net
-- Headline macro or policy item
-(5–8 bullets total)
 
+- ...
+
+EOF
+```
+
+```bash
+# 4c. Background
+cat >> /tmp/dispatch.md <<'EOF'
 ## Background
 
-## Detailed Analysis
-### Index moves
-### Sector rotation
-### Flows & derivatives
-### Macro & policy
+...
 
-## What's New / Recent Developments
-
-## Open Questions & Disagreements
-
-## Sources
-1. {url} — {one-line}
+EOF
 ```
 
-1200–2500 words.
+Detailed Analysis — one Bash call per subsection. Skip sections with nothing material.
+
+```bash
+# 4d-i. Index moves
+cat >> /tmp/dispatch.md <<'EOF'
+## Detailed Analysis
+
+### Index moves
+
+...
+
+EOF
+```
+
+```bash
+# 4d-ii. Sector rotation
+cat >> /tmp/dispatch.md <<'EOF'
+### Sector rotation
+
+...
+
+EOF
+```
+
+```bash
+# 4d-iii. Flows & derivatives
+cat >> /tmp/dispatch.md <<'EOF'
+### Flows & derivatives
+
+...
+
+EOF
+```
+
+```bash
+# 4d-iv. Macro & policy
+cat >> /tmp/dispatch.md <<'EOF'
+### Macro & policy
+
+...
+
+EOF
+```
+
+```bash
+# 4e. What's New / Recent Developments
+cat >> /tmp/dispatch.md <<'EOF'
+## What's New / Recent Developments
+
+...
+
+EOF
+```
+
+```bash
+# 4f. Open Questions & Disagreements
+cat >> /tmp/dispatch.md <<'EOF'
+## Open Questions & Disagreements
+
+...
+
+EOF
+```
+
+```bash
+# 4g. Sources
+cat >> /tmp/dispatch.md <<'EOF'
+## Sources
+
+1. <url> — <one-line>
+
+EOF
+```
+
+Total 1200–2500 words. Skip any section that has nothing.
 
 ## Step 5 — file the dispatch
 

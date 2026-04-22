@@ -25,31 +25,79 @@ WebFetch 3–5 primary sources (Reuters, AP, FT, WSJ, Bloomberg wire, official s
 
 Note where sources disagree.
 
-## Step 4 — write to /tmp/dispatch.md
+## Step 4 — assemble /tmp/dispatch.md section-by-section
 
+**Do NOT write the whole briefing in one shot — the stream will time out.** One Bash call per section. Skip categories with nothing material.
+
+```bash
+# 4a. Header
+cat > /tmp/dispatch.md <<'EOF'
+# World evening — <date>
+
+**Date:** <today>
+**TL;DR:** <1–2 sentences>
+
+EOF
 ```
-# World evening — {date}
 
-**Date:** {today}
-**TL;DR:** {1–2 sentences.}
-
+```bash
+# 4b. Geopolitics
+cat >> /tmp/dispatch.md <<'EOF'
 ## Geopolitics
+
 - ...
 
+EOF
+```
+
+```bash
+# 4c. Markets
+cat >> /tmp/dispatch.md <<'EOF'
 ## Markets
+
 - ...
 
+EOF
+```
+
+```bash
+# 4d. Tech & science
+cat >> /tmp/dispatch.md <<'EOF'
 ## Tech & science
+
 - ...
 
+EOF
+```
+
+```bash
+# 4e. Business & policy
+cat >> /tmp/dispatch.md <<'EOF'
 ## Business & policy
+
 - ...
 
-## One to read
-One paragraph + link.
+EOF
+```
 
+```bash
+# 4f. One to read
+cat >> /tmp/dispatch.md <<'EOF'
+## One to read
+
+<One paragraph + link.>
+
+EOF
+```
+
+```bash
+# 4g. Sources
+cat >> /tmp/dispatch.md <<'EOF'
 ## Sources
-1. {url} — {one-line}
+
+1. <url> — <one-line>
+
+EOF
 ```
 
 Tight: 400–700 words. Drop empty categories.

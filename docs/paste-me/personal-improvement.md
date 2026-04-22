@@ -19,31 +19,82 @@ Parse `result.content[0].text` as JSON. Weave pending items in; keep ids for ste
 - WebFetch 3–6 primary sources in full — the actual paper or the researcher's blog/podcast transcript, not a tertiary summary.
 - Cross-reference. Note effect sizes, sample sizes, conflicts of interest, replication status.
 
-## Step 4 — write to /tmp/dispatch.md
+## Step 4 — assemble /tmp/dispatch.md section-by-section
 
+**Do NOT write the whole briefing in one shot — the stream will time out.** One Bash call per section.
+
+```bash
+# 4a. Header
+cat > /tmp/dispatch.md <<'EOF'
+# <descriptive title — a concrete claim or question>
+
+**Date:** <today>
+**TL;DR:** <2–3 sentences>
+
+EOF
 ```
-# {descriptive title — a concrete claim or question}
 
-**Date:** {today}
-**TL;DR:**
-
+```bash
+# 4b. Key Findings: 5–8 bullets with effect sizes, n, duration
+cat >> /tmp/dispatch.md <<'EOF'
 ## Key Findings
-- 5–8 bullets with effect sizes, n, duration
 
+- ...
+
+EOF
+```
+
+```bash
+# 4c. Background
+cat >> /tmp/dispatch.md <<'EOF'
 ## Background
 
-## Detailed Analysis
+...
 
-## What's New / Recent Developments
-
-## Open Questions & Disagreements
-(This section matters a lot here — health research is noisy.)
-
-## Sources
-1. {url} — {one-line}
+EOF
 ```
 
-1200–2500 words.
+```bash
+# 4d. Detailed Analysis
+cat >> /tmp/dispatch.md <<'EOF'
+## Detailed Analysis
+
+...
+
+EOF
+```
+
+```bash
+# 4e. What's New / Recent Developments
+cat >> /tmp/dispatch.md <<'EOF'
+## What's New / Recent Developments
+
+...
+
+EOF
+```
+
+```bash
+# 4f. Open Questions & Disagreements — this section matters a lot here; health research is noisy
+cat >> /tmp/dispatch.md <<'EOF'
+## Open Questions & Disagreements
+
+...
+
+EOF
+```
+
+```bash
+# 4g. Sources
+cat >> /tmp/dispatch.md <<'EOF'
+## Sources
+
+1. <url> — <one-line>
+
+EOF
+```
+
+Total 1200–2500 words.
 
 ## Step 5 — file the dispatch
 

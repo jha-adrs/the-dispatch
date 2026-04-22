@@ -25,39 +25,85 @@ WebFetch 3–5 primary sources in full (Reuters, AP, FT, WSJ, Bloomberg wire, of
 
 Note where sources disagree.
 
-## Step 4 — write to /tmp/dispatch.md
+## Step 4 — assemble /tmp/dispatch.md section-by-section
 
-Skeleton:
+**Do NOT write the whole briefing in one shot — the stream will time out.** One Bash call per section. Skip categories with nothing material.
 
+```bash
+# 4a. Header
+cat > /tmp/dispatch.md <<'EOF'
+# World morning — <date, e.g. "22 April 2026">
+
+**Date:** <today>
+**TL;DR:** <1–2 sentences. The single most important thing that happened overnight.>
+
+EOF
 ```
-# World morning — {date, e.g. "22 April 2026"}
 
-**Date:** {today}
-**TL;DR:** {1–2 sentences. The single most important thing that happened overnight.}
-
+```bash
+# 4b. Geopolitics
+cat >> /tmp/dispatch.md <<'EOF'
 ## Geopolitics
-- specific bullet with names, places, numbers
+
+- <specific bullet with names, places, numbers>
 - ...
 
-## Markets
-- index levels, FX moves, commodity moves with figures
-- ...
-
-## Tech & science
-- ...
-
-## Business & policy
-- ...
-
-## One to read
-A single human-interest / long-read / deeply-reported piece from the last 24h. One paragraph summary + link.
-
-## Sources
-1. {url} — {one-line description}
-...
+EOF
 ```
 
-Tight: 400–700 words. If a category had nothing material, drop the whole section — don't pad.
+```bash
+# 4c. Markets
+cat >> /tmp/dispatch.md <<'EOF'
+## Markets
+
+- <index levels, FX moves, commodity moves with figures>
+- ...
+
+EOF
+```
+
+```bash
+# 4d. Tech & science
+cat >> /tmp/dispatch.md <<'EOF'
+## Tech & science
+
+- ...
+
+EOF
+```
+
+```bash
+# 4e. Business & policy
+cat >> /tmp/dispatch.md <<'EOF'
+## Business & policy
+
+- ...
+
+EOF
+```
+
+```bash
+# 4f. One to read
+cat >> /tmp/dispatch.md <<'EOF'
+## One to read
+
+<A single human-interest / long-read / deeply-reported piece from the last 24h. One paragraph summary + link.>
+
+EOF
+```
+
+```bash
+# 4g. Sources
+cat >> /tmp/dispatch.md <<'EOF'
+## Sources
+
+1. <url> — <one-line description>
+...
+
+EOF
+```
+
+Tight: 400–700 words total. Skip empty categories — drop the whole `cat >>` for that section.
 
 ## Step 5 — file the dispatch
 
