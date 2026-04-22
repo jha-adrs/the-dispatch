@@ -49,7 +49,7 @@ function buildApi(db) {
       LIMIT @limit
     `),
     getReport: db.prepare(`
-      SELECT id, slug, title, summary, received_at
+      SELECT id, slug, title, summary, word_count, sources_json, received_at
       FROM reports WHERE id = ?
     `),
     countReports: db.prepare(`SELECT COUNT(*) AS n FROM reports`),
