@@ -1,0 +1,28 @@
+{
+  "name": "the-dispatch",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-hosted remote MCP server + newspaper dashboard for Claude Code Routines research briefings",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "node --watch --env-file=.env src/server.js",
+    "start": "node src/server.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "better-sqlite3": "^11.3.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-basic-auth": "^1.2.1",
+    "pdf-lib": "^1.17.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.4"
+  }
+}

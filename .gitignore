@@ -1,0 +1,12 @@
+node_modules/
+.env
+.env.local
+reports.db
+reports.db-journal
+reports.db-wal
+reports.db-shm
+archive/
+logs/
+*.log
+.DS_Store
+coverage/
