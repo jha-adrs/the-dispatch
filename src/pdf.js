@@ -1,5 +1,34 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 
+// Standard (WinAnsi) fonts can't encode a lot of real-world unicode — ₹, arrows,
+// CJK, em-dashes from some sources, etc. Rather than embedding a broad-coverage
+// TTF (extra bundled asset), we map the common ones to ASCII lookalikes and
+// strip anything we can't encode. The markdown + download routes always have
+// the original unchanged; this only affects the rendered PDF.
+const REPLACEMENTS = [
+  [/[–—]/g, '-'],     // en/em dash
+  [/[‘’]/g, "'"],    // smart quotes
+  [/[“”]/g, '"'],    // smart double quotes
+  [/…/g, '...'],           // ellipsis
+  [/•/g, '*'],             // bullet
+  [/₹/g, 'INR '],          // rupee
+  [/€/g, 'EUR '],          // euro (actually in WinAnsi, but safe)
+  [/£/g, 'GBP '],          // pound (in WinAnsi too — safe)
+  [/¥/g, 'JPY '],          // yen
+  [/[→➔]/g, '->'],   // arrows
+  [/[←]/g, '<-'],
+  [/[↔]/g, '<->'],
+  [/[×]/g, 'x'],
+];
+
+function sanitize(text) {
+  let s = text;
+  for (const [re, to] of REPLACEMENTS) s = s.replace(re, to);
+  // strip anything else outside WinAnsi-safe range (keep CR/LF so flow works)
+  s = s.replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g, '');
+  return s;
+}
+
 const PAGE_W = 612;
 const PAGE_H = 792;
 const MARGIN = 60;
@@ -30,7 +59,7 @@ export async function renderMarkdownToPdf(markdown, { title }) {
 
   const drawLine = (text, { font = serif, size = 11, color = INK, indent = 0 } = {}) => {
     ensureRoom(LINE_H);
-    state.page.drawText(text, {
+    state.page.drawText(sanitize(text), {
       x: MARGIN + indent,
       y: state.y - size,
       size,
@@ -43,8 +72,9 @@ export async function renderMarkdownToPdf(markdown, { title }) {
   const drawWrapped = (text, opts = {}) => {
     const { font = serif, size = 11, color = INK, indent = 0 } = opts;
     if (!text) return;
+    const safe = sanitize(text);
     const width = MAX_W - indent;
-    const words = text.split(/\s+/);
+    const words = safe.split(/\s+/);
     let line = '';
     for (const word of words) {
       const candidate = line ? `${line} ${word}` : word;
@@ -58,6 +88,9 @@ export async function renderMarkdownToPdf(markdown, { title }) {
     }
     if (line) drawLine(line, { font, size, color, indent });
   };
+
+  // Note: drawLine re-applies sanitize on the final line string, which is
+  // a no-op on already-sanitized input — cheap double-guard.
 
   const blank = (h = LINE_H / 2) => {
     ensureRoom(h);

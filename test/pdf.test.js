@@ -41,4 +41,19 @@ describe('renderMarkdownToPdf', () => {
     const bytes = await renderMarkdownToPdf('# Just a title\n\nbody.', { title: 'x' });
     expect(bytes.length).toBeGreaterThan(500);
   });
+
+  it('renders unicode characters (₹, em-dash, arrows) without throwing', async () => {
+    const unicode = `# Markets — 22 April
+
+**TL;DR:** FII outflow ₹3,200 cr; DII inflow ₹2,100 cr. Nifty → 24,250.
+
+## Key Findings
+
+- Breadth: ~150 advances ← 300 declines. Sectoral leaders: auto, pharma.
+- RBI flagged inflation risks; "food inflation remains sticky" — governor.
+- Indian rupee traded around ₹83.5/USD; crude ≈ \$87.
+`;
+    const bytes = await renderMarkdownToPdf(unicode, { title: 'Markets — 22 April' });
+    expect(bytes.length).toBeGreaterThan(500);
+  });
 });
