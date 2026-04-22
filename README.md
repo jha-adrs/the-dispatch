@@ -21,25 +21,43 @@ Full architecture notes: [`CLAUDE.md`](./CLAUDE.md). Implementation plan archive
 
 ## Requirements
 
-- Ubuntu/Debian VPS (no Docker)
-- **Node.js 20+**, `npm`, `pm2`, `openssl`
-- **Caddy** already running (TLS terminator)
+- Ubuntu/Debian VPS (no Docker) — other distros work, but `--bootstrap` only covers apt-based ones
+- **Caddy** already running on the host (TLS terminator)
 - A DNS record pointing `<your-host>` at the VPS
+
+Node.js 20+, npm, pm2, openssl — `./install.sh --bootstrap` installs them for you if they're missing (Ubuntu/Debian), or bring your own.
 
 ## Install — scripted
 
+**Fresh VPS** (no Node, no pm2 — auto-installs them):
+
 ```bash
-git clone https://github.com/<you>/the-dispatch.git ~/dispatch
+git clone https://github.com/jha-adrs/the-dispatch.git ~/dispatch
+cd ~/dispatch
+./install.sh --bootstrap
+```
+
+**VPS already has Node 20+, pm2, openssl:**
+
+```bash
+git clone https://github.com/jha-adrs/the-dispatch.git ~/dispatch
 cd ~/dispatch
 ./install.sh
 ```
 
-The script runs `npm ci`, generates **both** bearer tokens (`openssl rand -hex 32` each), interactively prompts for dashboard credentials / host / port, writes `.env` (mode 600), starts the app under pm2, and prints:
+Either way, the script:
 
-- The two tokens **once** — save them somewhere; the routine bearer goes into the claude.ai custom connector; the client bearer goes into your local Claude Code MCP config.
-- A Caddy site block to **append** to `/etc/caddy/Caddyfile` (never replaces the file).
+1. Verifies / installs prerequisites (`--bootstrap` only: Node 20 via NodeSource, pm2 globally, build toolchain for `better-sqlite3`).
+2. Runs `npm ci` (or `npm install` if no lockfile).
+3. Generates **both** bearer tokens (`openssl rand -hex 32` each).
+4. Interactively prompts for dashboard credentials, host, port.
+5. Writes `.env` (mode 600), starts under pm2, offers to run `pm2 startup` for reboot survival.
+6. Prints the two tokens **once** — save them somewhere; the routine bearer goes into the claude.ai custom connector; the client bearer goes into your local Claude Code MCP config.
+7. Prints the Caddy site block to **append** to `/etc/caddy/Caddyfile` (never replaces the file).
 
-Pass `--regen` to rotate tokens on an existing install.
+Flags:
+- `--bootstrap`: auto-install missing Node/pm2/build deps on Ubuntu/Debian (uses sudo).
+- `--regen`: rotate bearer tokens on an existing install.
 
 ## Install — manual
 
