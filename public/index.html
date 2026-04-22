@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Dispatch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,800;1,9..144,300;1,9..144,800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+  :root {
+    --paper: #f4ede1;
+    --ink: #111;
+    --red: #b8290c;
+    --muted: #6a6358;
+    --rule: #1a1a1a;
+    --serif: 'Fraunces', 'Georgia', serif;
+    --sans: 'Inter', -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', 'Menlo', monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--paper);
+    background-image: radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px);
+    background-size: 4px 4px;
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+  a { color: var(--red); }
+  button { font-family: inherit; cursor: pointer; }
+
+  .page { max-width: 1280px; margin: 0 auto; padding: 28px 36px 80px; }
+
+  /* Masthead */
+  .masthead { border-top: 2px solid var(--rule); }
+  .masthead-top, .masthead-bot {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: var(--sans); font-size: 11px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted);
+    padding: 10px 2px;
+  }
+  .masthead-rule { height: 1px; background: var(--rule); }
+  .masthead-title {
+    text-align: center;
+    font-family: var(--serif);
+    font-weight: 800;
+    font-size: clamp(48px, 9vw, 110px);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    padding: 22px 0 26px;
+  }
+  .masthead-title em { color: var(--red); font-style: italic; font-weight: 800; }
+  .masthead-byline { font-family: var(--serif); font-style: italic; color: var(--muted); font-size: 13px; text-transform: none; letter-spacing: normal; }
+
+  /* Grid */
+  .layout {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 40px;
+    margin-top: 28px;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+  /* Sidebar */
+  .sidebar > section { margin-bottom: 28px; }
+  .sidebar h3 {
+    font-family: var(--serif); font-weight: 600;
+    font-size: 13px; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--muted); margin: 0 0 10px; padding-bottom: 6px;
+    border-bottom: 1px solid rgba(0,0,0,.15);
+  }
+
+  .topics { list-style: none; margin: 0; padding: 0; }
+  .topics li {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 7px 0; border-bottom: 1px dashed rgba(0,0,0,.1);
+    font-family: var(--serif); font-size: 16px;
+  }
+  .topics li:last-child { border-bottom: none; }
+  .topics .topic-name { font-weight: 600; }
+  .topics .topic-name .pending { color: var(--red); font-weight: 800; font-style: italic; margin-left: 6px; font-size: 13px; }
+  .topics .topic-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat { border: 1px solid rgba(0,0,0,.15); padding: 12px; text-align: center; background: rgba(255,255,255,.25); }
+  .stat .num { font-family: var(--serif); font-weight: 800; font-size: 30px; line-height: 1; }
+  .stat .label { font-size: 10px; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+
+  .status { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .status .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #5c8a36; margin-right: 6px; vertical-align: middle; }
+  .status .dot.err { background: var(--red); }
+
+  /* Queue a brief */
+  .queue-form { display: flex; flex-direction: column; gap: 6px; }
+  .queue-form input, .queue-form textarea, .queue-form select {
+    font-family: var(--sans); font-size: 13px;
+    padding: 7px 9px; border: 1px solid rgba(0,0,0,.3); background: rgba(255,255,255,.4);
+    color: var(--ink); border-radius: 0;
+  }
+  .queue-form textarea { resize: vertical; min-height: 72px; font-family: var(--serif); font-size: 14px; line-height: 1.45; }
+  .queue-form button {
+    background: var(--ink); color: var(--paper);
+    border: none; padding: 9px 12px; font-weight: 600;
+    letter-spacing: .1em; text-transform: uppercase; font-size: 11px;
+  }
+  .queue-form button:disabled { opacity: .5; cursor: default; }
+  .queue-msg { font-size: 11px; color: var(--muted); font-family: var(--mono); margin-top: 4px; min-height: 14px; }
+  .queue-msg.ok { color: #3b6a1a; }
+  .queue-msg.err { color: var(--red); }
+
+  /* Hero */
+  .hero {
+    border: 2px solid var(--rule);
+    background: rgba(255,255,255,.45);
+    padding: 30px 32px 26px;
+    position: relative;
+    box-shadow: 4px 4px 0 rgba(0,0,0,.08);
+    margin-bottom: 36px;
+  }
+  .hero-kicker {
+    position: absolute; top: -11px; left: 18px;
+    background: var(--paper);
+    padding: 0 10px;
+    font-family: var(--sans); font-size: 11px; font-weight: 700;
+    letter-spacing: .22em; text-transform: uppercase; color: var(--red);
+  }
+  .hero-slug { font-family: var(--mono); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .15em; }
+  .hero-title { font-family: var(--serif); font-weight: 800; font-size: clamp(24px, 3vw, 34px); line-height: 1.15; margin: 8px 0 10px; letter-spacing: -0.01em; }
+  .hero-tldr { font-family: var(--serif); font-style: italic; color: #2a261f; font-size: 17px; line-height: 1.5; margin: 0 0 18px; }
+  .hero-actions { display: flex; gap: 16px; flex-wrap: wrap; align-items: baseline; font-family: var(--sans); font-size: 13px; }
+  .hero-actions .primary { background: var(--ink); color: var(--paper); padding: 7px 12px; border: none; text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 700; }
+  .hero-actions a { color: var(--ink); text-decoration: none; border-bottom: 1px solid rgba(0,0,0,.3); padding-bottom: 1px; }
+  .hero-actions a:hover { color: var(--red); border-bottom-color: var(--red); }
+
+  /* Archive */
+  .archive-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-top: 2px solid var(--rule); border-bottom: 1px solid var(--rule);
+    padding: 10px 2px; margin-bottom: 18px;
+  }
+  .archive-head h2 { font-family: var(--serif); font-weight: 800; font-style: italic; font-size: 22px; margin: 0; }
+  .archive-head .filter { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+  .archive-head .filter button {
+    background: transparent; border: none; font-family: var(--mono); font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .12em; padding: 0 4px;
+  }
+  .archive-head .filter button.active { color: var(--ink); text-decoration: underline; }
+
+  .archive-grid {
+    column-count: 2; column-gap: 32px;
+  }
+  @media (max-width: 680px) { .archive-grid { column-count: 1; } }
+  .card {
+    break-inside: avoid;
+    border-top: 1px solid rgba(0,0,0,.3);
+    padding: 14px 0 18px;
+    margin-bottom: 4px;
+  }
+  .card-slug { font-family: var(--mono); font-size: 10px; text-transform: uppercase; letter-spacing: .18em; color: var(--muted); }
+  .card-title { font-family: var(--serif); font-weight: 600; font-size: 19px; line-height: 1.2; margin: 6px 0 8px; letter-spacing: -0.005em; }
+  .card-tldr { font-family: var(--serif); font-size: 14px; line-height: 1.5; color: #2a261f; margin: 0 0 8px; }
+  .card-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); display: flex; justify-content: space-between; }
+  .card-meta a { color: var(--muted); text-decoration: none; border-bottom: 1px dotted var(--muted); }
+
+  .empty {
+    text-align: center; padding: 60px 20px;
+    font-family: var(--serif); font-style: italic; color: var(--muted);
+  }
+  .empty .big { font-size: 24px; display: block; margin-bottom: 8px; }
+
+  /* Reader overlay */
+  .reader {
+    position: fixed; inset: 0; background: var(--paper);
+    background-image: radial-gradient(rgba(0,0,0,.035) 1px, transparent 1px);
+    background-size: 4px 4px;
+    overflow-y: auto; z-index: 9999;
+    padding: 36px 20px 100px;
+    display: none;
+  }
+  .reader.open { display: block; }
+  .reader-inner { max-width: 68ch; margin: 0 auto; }
+  .reader-bar {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 18px; font-family: var(--mono); font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .15em;
+  }
+  .reader-bar button { background: transparent; border: none; color: var(--ink); cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .15em; text-transform: uppercase; }
+  .reader-bar .actions { display: flex; gap: 18px; }
+  .reader-bar a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted rgba(0,0,0,.4); padding-bottom: 1px; }
+  .reader-body {
+    font-family: var(--serif); font-size: 18px; line-height: 1.65; color: var(--ink);
+  }
+  .reader-body h1 { font-weight: 800; font-size: 38px; line-height: 1.1; margin: 0 0 14px; letter-spacing: -0.015em; }
+  .reader-body h2 { font-weight: 800; font-style: italic; color: var(--red); font-size: 26px; margin: 36px 0 10px; }
+  .reader-body h3 { font-weight: 600; font-size: 20px; margin: 24px 0 8px; }
+  .reader-body p { margin: 0 0 16px; }
+  .reader-body a { color: var(--red); text-decoration: underline; text-underline-offset: 2px; }
+  .reader-body blockquote { border-left: 3px solid var(--red); margin: 18px 0; padding: 2px 0 2px 18px; font-style: italic; color: #3a342a; }
+  .reader-body hr { border: none; border-top: 1px dashed rgba(0,0,0,.4); margin: 28px 0; }
+  .reader-body code { font-family: var(--mono); font-size: .88em; background: rgba(0,0,0,.06); padding: 1px 5px; }
+  .reader-body pre { background: rgba(0,0,0,.06); padding: 14px 18px; overflow-x: auto; }
+  .reader-body pre code { background: transparent; padding: 0; font-size: 14px; line-height: 1.5; }
+  .reader-body ul, .reader-body ol { padding-left: 22px; margin: 0 0 16px; }
+  .reader-body li { margin-bottom: 6px; }
+  .reader-body strong { font-weight: 800; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="masthead">
+    <div class="masthead-top">
+      <span id="today">—</span>
+      <span id="vol">Vol. 1</span>
+      <span id="count">0 dispatches filed</span>
+    </div>
+    <div class="masthead-rule"></div>
+    <h1 class="masthead-title">The <em>Dispatch</em></h1>
+    <div class="masthead-rule"></div>
+    <div class="masthead-bot">
+      <span class="masthead-byline">A private daily briefing, filed by Claude.</span>
+      <span id="latest-at">—</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <section>
+        <h3>Topics</h3>
+        <ul class="topics" id="topics"></ul>
+      </section>
+
+      <section>
+        <h3>Stats</h3>
+        <div class="stats">
+          <div class="stat"><div class="num" id="stat-reports">0</div><div class="label">Dispatches</div></div>
+          <div class="stat"><div class="num" id="stat-topics">0</div><div class="label">Topics</div></div>
+        </div>
+      </section>
+
+      <section>
+        <h3>Queue a Brief</h3>
+        <form class="queue-form" id="queue-form">
+          <input type="text" id="q-slug" placeholder="topic-slug (e.g. markets)" required pattern="[a-z0-9][a-z0-9-]{0,63}" maxlength="64" list="slug-list">
+          <datalist id="slug-list"></datalist>
+          <textarea id="q-text" placeholder="What should the next run cover?" required minlength="3" maxlength="2000"></textarea>
+          <button type="submit" id="q-submit">File request →</button>
+          <div class="queue-msg" id="q-msg"></div>
+        </form>
+      </section>
+
+      <section>
+        <h3>Status</h3>
+        <div class="status" id="status"><span class="dot"></span>Connected. Polling every 10s.</div>
+      </section>
+    </aside>
+
+    <main class="main">
+      <div id="hero-slot"></div>
+
+      <div class="archive-head">
+        <h2>The Archive</h2>
+        <div class="filter" id="filter"></div>
+      </div>
+      <div class="archive-grid" id="archive"></div>
+    </main>
+  </div>
+</div>
+
+<div class="reader" id="reader" role="dialog" aria-modal="true">
+  <div class="reader-inner">
+    <div class="reader-bar">
+      <button id="reader-close" aria-label="Close reader">← Back</button>
+      <div class="actions" id="reader-actions"></div>
+    </div>
+    <article class="reader-body" id="reader-body"></article>
+  </div>
+</div>
+
+<script>
+// All state lives here. No localStorage/sessionStorage — not supported by the hosting.
+const state = {
+  stats: null,
+  slugs: [],
+  reports: [],
+  pending: [],
+  filter: null,
+  lastPollOk: true,
+};
+
+const $ = (sel) => document.querySelector(sel);
+
+function fmtDate(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+}
+function fmtDateShort(iso) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }).toUpperCase();
+}
+function relTime(iso) {
+  if (!iso) return '—';
+  const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+  if (s < 60) return `${s}s ago`;
+  const m = Math.floor(s/60); if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m/60); if (h < 48) return `${h}h ago`;
+  const d = Math.floor(h/24); if (d < 30) return `${d}d ago`;
+  const mo = Math.floor(d/30); return `${mo}mo ago`;
+}
+function titleCase(slug) {
+  return slug.split('-').map(w => w.length ? w[0].toUpperCase() + w.slice(1) : w).join(' ');
+}
+
+async function fetchJson(url, opts={}) {
+  const r = await fetch(url, { credentials: 'include', ...opts });
+  if (!r.ok) throw new Error(`${url} → ${r.status}`);
+  return r.json();
+}
+
+async function poll() {
+  try {
+    const [stats, slugs, reports, pending] = await Promise.all([
+      fetchJson('/api/stats'),
+      fetchJson('/api/slugs'),
+      fetchJson('/api/reports'),
+      fetchJson('/api/requests?status=pending'),
+    ]);
+    state.stats = stats;
+    state.slugs = slugs;
+    state.reports = reports;
+    state.pending = pending;
+    state.lastPollOk = true;
+    render();
+  } catch (e) {
+    state.lastPollOk = false;
+    const s = $('#status');
+    s.innerHTML = '<span class="dot err"></span>Poll failed: ' + e.message;
+  }
+}
+
+function render() {
+  const today = new Date();
+  $('#today').textContent = today.toLocaleDateString('en-GB', { weekday:'long', day:'numeric', month:'long', year:'numeric' }).toUpperCase();
+  $('#count').textContent = `${state.stats.report_count} dispatch${state.stats.report_count === 1 ? '' : 'es'} filed`;
+  $('#latest-at').textContent = state.stats.latest ? `Last filed ${relTime(state.stats.latest)}` : 'Nothing filed yet';
+
+  // Sidebar: topics
+  const topicsEl = $('#topics');
+  topicsEl.innerHTML = '';
+  if (!state.slugs.length) {
+    topicsEl.innerHTML = '<li><em style="color:var(--muted); font-style:italic;">No topics yet.</em></li>';
+  } else {
+    for (const s of state.slugs) {
+      const li = document.createElement('li');
+      const pendingBadge = s.pending ? `<span class="pending" title="${s.pending} pending request${s.pending===1?'':'s'}">+${s.pending}</span>` : '';
+      li.innerHTML = `
+        <span class="topic-name">${titleCase(s.slug)}${pendingBadge}</span>
+        <span class="topic-meta">${s.count} · ${relTime(s.latest)}</span>`;
+      li.style.cursor = 'pointer';
+      li.addEventListener('click', () => {
+        state.filter = state.filter === s.slug ? null : s.slug;
+        render();
+      });
+      topicsEl.appendChild(li);
+    }
+  }
+
+  // Slug datalist (for queue form autocomplete)
+  const dl = $('#slug-list');
+  dl.innerHTML = state.slugs.map(s => `<option value="${s.slug}">`).join('');
+
+  // Stats
+  $('#stat-reports').textContent = state.stats.report_count;
+  $('#stat-topics').textContent = state.stats.topic_count;
+
+  // Status
+  if (state.lastPollOk) {
+    $('#status').innerHTML = '<span class="dot"></span>Connected. Polling every 10s.';
+  }
+
+  // Filter
+  const filtered = state.filter ? state.reports.filter(r => r.slug === state.filter) : state.reports;
+
+  // Hero: latest in current filter (or overall)
+  const hero = $('#hero-slot');
+  hero.innerHTML = '';
+  if (filtered.length) {
+    const r = filtered[0];
+    hero.innerHTML = heroHtml(r);
+    hero.querySelector('.primary').addEventListener('click', () => openReader(r.id));
+  } else {
+    hero.innerHTML = `<div class="empty"><span class="big">The presses are cold.</span>${state.filter ? `No dispatches filed under <em>${state.filter}</em> yet.` : 'No dispatches have been filed yet. The next scheduled routine will change that.'}</div>`;
+  }
+
+  // Archive: everything after hero
+  const archiveEl = $('#archive');
+  archiveEl.innerHTML = '';
+  for (let i = 1; i < filtered.length; i++) {
+    const r = filtered[i];
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="card-slug">${r.slug} · ${fmtDateShort(r.received_at)}</div>
+      <h3 class="card-title">${escapeHtml(r.title)}</h3>
+      <p class="card-tldr">${escapeHtml(r.summary || '')}</p>
+      <div class="card-meta">
+        <a href="#" data-id="${r.id}" class="read">Read →</a>
+        <span>${r.word_count} words · <a href="/report/${r.id}.pdf">PDF</a></span>
+      </div>`;
+    card.querySelector('.read').addEventListener('click', (e) => { e.preventDefault(); openReader(r.id); });
+    archiveEl.appendChild(card);
+  }
+
+  // Filter header
+  const filterEl = $('#filter');
+  const slugs = ['all', ...state.slugs.map(s=>s.slug)];
+  filterEl.innerHTML = slugs.map(s =>
+    `<button data-slug="${s === 'all' ? '' : s}" class="${(state.filter || 'all') === (s==='all'?'all':s) ? 'active' : ''}">${s === 'all' ? 'All' : titleCase(s)}</button>`
+  ).join(' · ');
+  filterEl.querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      state.filter = b.dataset.slug || null;
+      render();
+    });
+  });
+}
+
+function heroHtml(r) {
+  return `
+    <article class="hero">
+      <span class="hero-kicker">Latest Dispatch</span>
+      <div class="hero-slug">${r.slug} · ${fmtDate(r.received_at)}</div>
+      <h2 class="hero-title">${escapeHtml(r.title)}</h2>
+      <p class="hero-tldr">${escapeHtml(r.summary || '')}</p>
+      <div class="hero-actions">
+        <button class="primary">Read the dispatch →</button>
+        <a href="/report/${r.id}.pdf">⬇ PDF</a>
+        <a href="/report/${r.id}.md">Markdown</a>
+        <span style="color:var(--muted); margin-left:auto; font-family:var(--mono); font-size:11px;">${r.word_count} words</span>
+      </div>
+    </article>
+  `;
+}
+
+async function openReader(id) {
+  try {
+    const r = await fetchJson(`/api/report/${id}`);
+    $('#reader-body').innerHTML = marked.parse(r.markdown);
+    $('#reader-actions').innerHTML = `
+      <a href="/report/${id}.pdf">⬇ PDF</a>
+      <a href="/report/${id}.md">Markdown</a>
+      <span style="font-family:var(--mono); font-size:11px; color:var(--muted);">${r.slug}</span>`;
+    $('#reader').classList.add('open');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    history.pushState({ reader: id }, '', `/report/${id}`);
+  } catch (e) {
+    alert('Could not open report: ' + e.message);
+  }
+}
+function closeReader() {
+  $('#reader').classList.remove('open');
+  if (location.pathname.startsWith('/report/')) history.pushState({}, '', '/');
+}
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('#reader').classList.contains('open')) closeReader();
+});
+$('#reader-close').addEventListener('click', closeReader);
+window.addEventListener('popstate', () => {
+  if (!location.pathname.startsWith('/report/')) {
+    $('#reader').classList.remove('open');
+  }
+});
+
+// Queue form
+$('#queue-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const slug = $('#q-slug').value.trim();
+  const request_text = $('#q-text').value.trim();
+  const msg = $('#q-msg');
+  const btn = $('#q-submit');
+  btn.disabled = true; msg.className = 'queue-msg'; msg.textContent = 'Filing…';
+  try {
+    const r = await fetch('/api/requests', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ slug, request_text }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({ error: r.status }));
+      throw new Error(err.error || ('HTTP ' + r.status));
+    }
+    msg.className = 'queue-msg ok'; msg.textContent = `Queued for "${slug}". The next run picks it up.`;
+    $('#q-text').value = '';
+    poll();
+  } catch (e) {
+    msg.className = 'queue-msg err'; msg.textContent = 'Failed: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+// Deep link support: /report/<id> → open reader after first poll
+async function handleDeepLink() {
+  const m = location.pathname.match(/^\/report\/([A-Za-z0-9_:\-]+)$/);
+  if (m) { await openReader(m[1]); }
+}
+
+poll().then(handleDeepLink);
+setInterval(poll, 10000);
+</script>
+</body>
+</html>
