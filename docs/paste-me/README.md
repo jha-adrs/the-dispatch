@@ -15,7 +15,7 @@ Seven files in this folder, one per routine. Each is the **complete prompt** —
 1. claude.ai/code/routines → **New routine**.
 2. Name per the table below.
 3. **Prompt:** paste the file contents verbatim.
-4. **Repository:** attach any repo (`jha-adrs/the-dispatch` works; contents are irrelevant — the prompt is self-contained).
+4. **Repository:** none needed — the prompt is fully self-contained. If the routine form insists on one, attach anything (a throwaway); contents are never read by Claude during the run.
 5. **Environment:** `dispatch`.
 6. **Connectors:** remove all (none needed).
 7. **Trigger:** set the cadence below.
@@ -37,6 +37,6 @@ All times are your local zone (IST if you're in India) — Claude converts them 
 
 ## After all 7 are live
 
-- Watch the first real cycle. If a routine fails at `bash scripts/file-dispatch.sh`, the session log shows the exact curl response — usually a 401 (wrong `DISPATCH_TOKEN`) or 400 (markdown doesn't pass `# `/`**TL;DR:**` validation).
-- Queue ad-hoc briefs via the **Queue a Brief** card on the dashboard. Pick the slug of whichever routine's next run you want to hijack; the next `bash scripts/next-request.sh <slug>` call that routine makes will see the pending item.
+- Watch the first real cycle. If a routine fails at the `curl … save_report` step, the session log shows the exact response — usually a 401 (wrong `DISPATCH_TOKEN`) or 400 (markdown doesn't pass `# `/`**TL;DR:**` validation).
+- Queue ad-hoc briefs via the **Queue a Brief** card on the dashboard. Pick the slug of whichever routine's next run you want to hijack; the next `next_request` call that routine makes (step 0) will see the pending item.
 - Set up a nightly rsync of `~/dispatch/reports.db*` + `~/dispatch/archive/` to offsite.
