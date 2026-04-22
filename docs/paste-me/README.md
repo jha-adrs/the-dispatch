@@ -2,19 +2,20 @@
 
 Seven files in this folder, one per routine. Each is the **complete prompt** — no substitution needed, just copy → paste into the routine prompt field on claude.ai.
 
+**Self-contained — no repo checkout required.** The prompts inline the `node` → `curl` call, so they work regardless of whether the session's cwd matches the cloned repo. You still attach a repo (routines require ≥1), but none of its contents matter.
+
 ## Setup order
 
 **Once (5 min):**
 1. claude.ai/code/environments → **New environment** → name it `dispatch`. Add:
    - `DISPATCH_URL` = `https://dispatch.platinumj.xyz`
    - `DISPATCH_TOKEN` = your `MCP_BEARER_TOKEN` from the VPS `install.sh` output.
-2. Confirm the repo is pushed to GitHub and reachable (it's public).
 
 **Per routine (≈45 seconds each):**
 1. claude.ai/code/routines → **New routine**.
 2. Name per the table below.
-3. **Prompt:** paste the file contents.
-4. **Repository:** `jha-adrs/the-dispatch`.
+3. **Prompt:** paste the file contents verbatim.
+4. **Repository:** attach any repo (`jha-adrs/the-dispatch` works; contents are irrelevant — the prompt is self-contained).
 5. **Environment:** `dispatch`.
 6. **Connectors:** remove all (none needed).
 7. **Trigger:** set the cadence below.

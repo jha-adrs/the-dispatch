@@ -1,43 +1,91 @@
-Research and file a dispatch on personal improvement — actionable research on sleep, focus, longevity, habits, exercise, nutrition, or learning — at the level of working engineers, not self-help.
+Research and file a dispatch on personal improvement — actionable research on sleep, focus, longevity, habits, exercise, nutrition, or learning — at the level of working engineers, not self-help. Topic slug: `personal-improvement`.
+Today is {{use current date}}. The environment has `DISPATCH_URL` and `DISPATCH_TOKEN` set.
 
-Today is {{use current date}}. Topic slug: `personal-improvement`.
+## Step 0 — check for queued requests
 
-Workflow:
+```bash
+curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
+  -H "Authorization: Bearer $DISPATCH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"next_request","arguments":{"topic_slug":"personal-improvement"}}}'
+```
 
-0. Check for queued requests:
-   ```
-   bash scripts/next-request.sh personal-improvement
-   ```
-   Parse JSON. Weave any pending `request_text` in; keep `id`s for step 5.
+Parse `result.content[0].text` as JSON. Weave pending items in; keep ids for step 5.
 
-1. WebSearch aggressively (5+ queries) — recent papers on PubMed/biorxiv, long-form pieces from researcher-operators (Huberman, Attia, Peter Walker on sleep, etc.), new meta-analyses. Prefer the last 30 days; accept older if it's a new re-analysis or debate.
+## Step 1–3 — research
 
-2. WebFetch 3–6 primary sources in full — the actual paper, the researcher's own blog/podcast transcript, not a tertiary summary.
+- WebSearch 5+ queries: recent papers on PubMed/biorxiv, long-form pieces from researcher-operators (Huberman, Attia, Peter Walker on sleep, etc.), new meta-analyses. Prefer last 30 days.
+- WebFetch 3–6 primary sources in full — the actual paper or the researcher's blog/podcast transcript, not a tertiary summary.
+- Cross-reference. Note effect sizes, sample sizes, conflicts of interest, replication status.
 
-3. Cross-reference. Note effect sizes, sample sizes, conflicts of interest, replication status.
+## Step 4 — write to /tmp/dispatch.md
 
-4. Write to `/tmp/dispatch.md`:
-   - `# {descriptive title — a concrete claim or question, not "personal improvement this week"}`
-   - `**Date:** {today}`
-   - `**TL;DR:**`
-   - `## Key Findings` (5–8 bullets with effect sizes, n, duration)
-   - `## Background`
-   - `## Detailed Analysis`
-   - `## What's New / Recent Developments`
-   - `## Open Questions & Disagreements` (this section matters a lot here — health research is noisy)
-   - `## Sources`
+```
+# {descriptive title — a concrete claim or question}
 
-5. File:
-   ```
-   bash scripts/file-dispatch.sh personal-improvement "<title>" /tmp/dispatch.md "<req_ids csv, or empty>"
-   ```
+**Date:** {today}
+**TL;DR:**
 
-6. Print the `url`.
+## Key Findings
+- 5–8 bullets with effect sizes, n, duration
 
-Writing rules:
+## Background
+
+## Detailed Analysis
+
+## What's New / Recent Developments
+
+## Open Questions & Disagreements
+(This section matters a lot here — health research is noisy.)
+
+## Sources
+1. {url} — {one-line}
+```
+
+1200–2500 words.
+
+## Step 5 — file the dispatch
+
+```bash
+cat > /tmp/dispatch-meta <<'META'
+<TITLE>
+<REQ_IDS>
+META
+
+SLUG=personal-improvement node -e '
+  const fs = require("fs");
+  const meta = fs.readFileSync("/tmp/dispatch-meta","utf8").split("\n");
+  const title = (meta[0] || "").trim();
+  const reqs = (meta[1] || "").split(",").map(s=>s.trim()).filter(Boolean);
+  const args = {
+    topic_slug: process.env.SLUG,
+    title,
+    markdown_body: fs.readFileSync("/tmp/dispatch.md","utf8"),
+  };
+  if (reqs.length) args.request_ids = reqs;
+  process.stdout.write(JSON.stringify({
+    jsonrpc: "2.0", id: 1, method: "tools/call",
+    params: { name: "save_report", arguments: args }
+  }));
+' | curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
+    -H "Authorization: Bearer $DISPATCH_TOKEN" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    --data-binary @-
+echo
+```
+
+## Step 6 — print the url
+
+Parse the response; print the `url` field. If `isError`, print the error and stop.
+
+## Writing rules
+
 - Skeptical by default. Flag small-n, unblinded, industry-funded.
 - Effect sizes as numbers ("0.34 Cohen's d"), not vibes.
 - Actionable: what's the smallest thing a reader could try this week?
+- When queued requests exist, address each one by name.
 - 1200–2500 words.
 
 Don't ask clarifying questions.

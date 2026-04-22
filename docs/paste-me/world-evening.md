@@ -1,58 +1,100 @@
-You're filing a short world-snapshot briefing — the evening edition.
-Today is {{use current date}}. Topic slug: `world-evening`.
+You're filing a short world-snapshot briefing — the evening edition. Topic slug: `world-evening`.
+Today is {{use current date}}. The environment has `DISPATCH_URL` and `DISPATCH_TOKEN` set.
 
-What I want: a tight 400–700 word briefing of what actually moved in the world today — Asian close + US midday + end-of-day geopolitics. Not a deep dive. Skim breadth, land on specifics. Five categories, in order: geopolitics, markets, tech & science, business & policy, one human-interest. Skip any category if nothing material happened.
+## Step 0 — check for queued requests
 
-Workflow:
+```bash
+curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
+  -H "Authorization: Bearer $DISPATCH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"next_request","arguments":{"topic_slug":"world-evening"}}}'
+```
 
-0. Check for queued requests:
-   ```
-   bash scripts/next-request.sh world-evening
-   ```
-   Parse JSON. Pending items become priority angles; keep their ids for step 5.
+Parse `result.content[0].text` as JSON (array of `{id, request_text, submitted_at}`). Weave pending items in; keep ids for step 5.
 
-1. WebSearch aggressively — 6–10 queries: "Asia close {{today}}", "US markets midday {{today}}", "world news today", "geopolitics {{today}}", plus topic-specific queries as leads emerge.
+## Step 1 — research
 
-2. WebFetch 3–5 primary sources (Reuters, AP, FT, WSJ, Bloomberg wire, official statements). Not aggregators.
+WebSearch aggressively (6–10 queries): "Asia close {today}", "US markets midday {today}", "world news today", "geopolitics {today}", plus topic-specific queries as leads emerge.
 
-3. Write to `/tmp/dispatch.md`:
+## Step 2 — fetch
 
-   ```
-   # World evening — {date}
+WebFetch 3–5 primary sources (Reuters, AP, FT, WSJ, Bloomberg wire, official statements). Not aggregators.
 
-   **Date:** {today}
-   **TL;DR:** {1–2 sentences.}
+## Step 3 — cross-reference
 
-   ## Geopolitics
-   - ...
+Note where sources disagree.
 
-   ## Markets
-   - ...
+## Step 4 — write to /tmp/dispatch.md
 
-   ## Tech & science
-   - ...
+```
+# World evening — {date}
 
-   ## Business & policy
-   - ...
+**Date:** {today}
+**TL;DR:** {1–2 sentences.}
 
-   ## One to read
-   One paragraph + link.
+## Geopolitics
+- ...
 
-   ## Sources
-   1. {url} — {one-line}
-   ```
+## Markets
+- ...
 
-4. File:
-   ```
-   bash scripts/file-dispatch.sh world-evening "World evening — <date>" /tmp/dispatch.md "<req_ids csv, or empty>"
-   ```
+## Tech & science
+- ...
 
-5. Print the `url`.
+## Business & policy
+- ...
 
-Writing rules:
+## One to read
+One paragraph + link.
+
+## Sources
+1. {url} — {one-line}
+```
+
+Tight: 400–700 words. Drop empty categories.
+
+## Step 5 — file the dispatch
+
+```bash
+cat > /tmp/dispatch-meta <<'META'
+<TITLE>
+<REQ_IDS>
+META
+
+SLUG=world-evening node -e '
+  const fs = require("fs");
+  const meta = fs.readFileSync("/tmp/dispatch-meta","utf8").split("\n");
+  const title = (meta[0] || "").trim();
+  const reqs = (meta[1] || "").split(",").map(s=>s.trim()).filter(Boolean);
+  const args = {
+    topic_slug: process.env.SLUG,
+    title,
+    markdown_body: fs.readFileSync("/tmp/dispatch.md","utf8"),
+  };
+  if (reqs.length) args.request_ids = reqs;
+  process.stdout.write(JSON.stringify({
+    jsonrpc: "2.0", id: 1, method: "tools/call",
+    params: { name: "save_report", arguments: args }
+  }));
+' | curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
+    -H "Authorization: Bearer $DISPATCH_TOKEN" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    --data-binary @-
+echo
+```
+
+## Step 6 — print the url
+
+Parse the response. `result.content[0].text` is JSON; print its `url` field. If `isError`, print the error and stop.
+
+## Writing rules
+
 - 400–700 words. If past 800, cut.
-- Specifics in every bullet.
+- Specifics in every bullet (number, name, place, timestamp).
 - Drop empty categories. Don't pad.
+- Never quote more than a short phrase.
 - Don't invent.
 
 Don't ask clarifying questions.

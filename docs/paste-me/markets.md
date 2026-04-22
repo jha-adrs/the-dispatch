@@ -1,47 +1,97 @@
-Research and file a dispatch on Indian equity markets close — indices, sectors, flows, macro drivers, and any central-bank or policy development that moved the tape today.
+Research and file a dispatch on Indian equity markets close — indices, sectors, flows, macro drivers, and any central-bank or policy development that moved the tape today. Topic slug: `markets`.
+Today is {{use current date}}. The environment has `DISPATCH_URL` and `DISPATCH_TOKEN` set.
 
-Today is {{use current date}}. Topic slug: `markets`.
+## Step 0 — check for queued requests
 
-Workflow:
+```bash
+curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
+  -H "Authorization: Bearer $DISPATCH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"next_request","arguments":{"topic_slug":"markets"}}}'
+```
 
-0. Check for queued requests:
-   ```
-   bash scripts/next-request.sh markets
-   ```
-   Parse JSON. Weave any pending `request_text` into the research focus; keep their `id`s for step 5.
+Parse `result.content[0].text` as JSON. Weave pending items in; keep ids for step 5.
 
-1. WebSearch aggressively (5+ queries) — Nifty close, Sensex close, sectoral leaders/laggards, FII/DII flows, RBI/SEBI actions, top movers, global cues that affected the open/close.
+## Step 1–3 — research
 
-2. WebFetch 3–6 primary sources: BSE/NSE exchange pages, AMFI for fund flows, RBI for any governor remarks, bseindia.com, nseindia.com, company disclosures for earnings-driven moves.
+- WebSearch 5+ queries: Nifty close, Sensex close, sectoral leaders/laggards, FII/DII flows, RBI/SEBI actions, top movers, global cues.
+- WebFetch 3–6 primary sources: BSE/NSE exchange pages, AMFI for fund flows, RBI for governor remarks, company disclosures for earnings moves.
+- Cross-reference the numbers.
 
-3. Cross-reference the numbers. Note where sources disagree.
+## Step 4 — write to /tmp/dispatch.md
 
-4. Write to `/tmp/dispatch.md`:
-   - `# Indian markets close — {today} ({descriptor, e.g. "RBI focus" or "IT drag"})`
-   - `**Date:** {today}`
-   - `**TL;DR:** {2–3 sentences. Lead with index direction + magnitude + the single biggest driver.}`
-   - `## Key Findings` (5–8 bullets: index closes with %, top gainers/losers, sectoral moves, FII ₹X cr net, DII ₹X cr net, headline macro or policy item)
-   - `## Background`
-   - `## Detailed Analysis`
-     - `### Index moves`
-     - `### Sector rotation`
-     - `### Flows & derivatives`
-     - `### Macro & policy`
-   - `## What's New / Recent Developments`
-   - `## Open Questions & Disagreements`
-   - `## Sources`
+```
+# Indian markets close — {today} ({descriptor, e.g. "RBI focus" or "IT drag"})
 
-5. File:
-   ```
-   bash scripts/file-dispatch.sh markets "<title without leading '# '>" /tmp/dispatch.md "<req_ids csv, or empty>"
-   ```
+**Date:** {today}
+**TL;DR:** {Lead with index direction + magnitude + the biggest driver, 2–3 sentences}
 
-6. Print the `url`.
+## Key Findings
+- Index closes with %, top gainers/losers, sectoral moves
+- FII ₹X cr net, DII ₹X cr net
+- Headline macro or policy item
+(5–8 bullets total)
 
-Writing rules:
+## Background
+
+## Detailed Analysis
+### Index moves
+### Sector rotation
+### Flows & derivatives
+### Macro & policy
+
+## What's New / Recent Developments
+
+## Open Questions & Disagreements
+
+## Sources
+1. {url} — {one-line}
+```
+
+1200–2500 words.
+
+## Step 5 — file the dispatch
+
+```bash
+cat > /tmp/dispatch-meta <<'META'
+<TITLE>
+<REQ_IDS>
+META
+
+SLUG=markets node -e '
+  const fs = require("fs");
+  const meta = fs.readFileSync("/tmp/dispatch-meta","utf8").split("\n");
+  const title = (meta[0] || "").trim();
+  const reqs = (meta[1] || "").split(",").map(s=>s.trim()).filter(Boolean);
+  const args = {
+    topic_slug: process.env.SLUG,
+    title,
+    markdown_body: fs.readFileSync("/tmp/dispatch.md","utf8"),
+  };
+  if (reqs.length) args.request_ids = reqs;
+  process.stdout.write(JSON.stringify({
+    jsonrpc: "2.0", id: 1, method: "tools/call",
+    params: { name: "save_report", arguments: args }
+  }));
+' | curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
+    -H "Authorization: Bearer $DISPATCH_TOKEN" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    --data-binary @-
+echo
+```
+
+## Step 6 — print the url
+
+Parse the response; print the `url` field. If `isError`, print the error and stop.
+
+## Writing rules
+
 - Numbers always. "Nifty closed 24,250, down 0.8%" beats "markets fell."
 - ₹ figures in crores. Rupee level at close if material.
 - Skip sections that had nothing material.
-- 1200–2500 words. Don't pad.
+- When queued requests exist, address each one by name.
+- 1200–2500 words.
 
 Don't ask clarifying questions.

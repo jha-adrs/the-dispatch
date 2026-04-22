@@ -1,43 +1,89 @@
-Research and file a dispatch on notable engineering techniques, developer tooling releases, and craft-level ideas worth a working engineer's attention.
+Research and file a dispatch on notable engineering techniques, developer tooling releases, and craft-level ideas worth a working engineer's attention. Topic slug: `dev-skills`.
+Today is {{use current date}}. The environment has `DISPATCH_URL` and `DISPATCH_TOKEN` set.
 
-Today is {{use current date}}. Topic slug: `dev-skills`.
+## Step 0 — check for queued requests
 
-Workflow:
+```bash
+curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
+  -H "Authorization: Bearer $DISPATCH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"next_request","arguments":{"topic_slug":"dev-skills"}}}'
+```
 
-0. Check for queued requests:
-   ```
-   bash scripts/next-request.sh dev-skills
-   ```
-   Parse `result.content[0].text` as JSON. If non-empty, treat each `request_text` as a priority angle and keep their `id`s for step 5.
+Parse `result.content[0].text` as JSON. Weave pending items in; keep ids for step 5.
 
-1. WebSearch aggressively (5+ distinct queries) — recent changelogs, HN/lobste.rs front page, notable engineering blogs, tooling releases in the last 7–14 days.
+## Step 1–3 — research
 
-2. WebFetch the 3–6 most important sources in full (primary posts, release notes, papers — not aggregator summaries).
+- WebSearch 5+ queries — recent changelogs, HN/lobste.rs front page, notable engineering blogs, tooling releases last 7–14 days.
+- WebFetch 3–6 primary sources in full (release notes, posts, papers — not aggregators).
+- Cross-reference.
 
-3. Cross-reference; note where sources disagree.
+## Step 4 — write to /tmp/dispatch.md
 
-4. Write to `/tmp/dispatch.md` with this skeleton:
-   - `# {descriptive title}`
-   - `**Date:** {today}`
-   - `**TL;DR:** {2–3 sentences, the single most important takeaway}`
-   - `## Key Findings` (5–8 concrete bullets with specifics)
-   - `## Background`
-   - `## Detailed Analysis` (subsections with ### headings)
-   - `## What's New / Recent Developments`
-   - `## Open Questions & Disagreements`
-   - `## Sources` (numbered, full URLs, one-line description each)
+```
+# {descriptive title}
 
-5. File the dispatch:
-   ```
-   bash scripts/file-dispatch.sh dev-skills "<title without leading '# '>" /tmp/dispatch.md "<req_ids csv, or empty>"
-   ```
+**Date:** {today}
+**TL;DR:** {2–3 sentences}
 
-6. Print the `url`.
+## Key Findings
+- 5–8 concrete bullets with specifics
 
-Writing rules:
-- Write in your own words. Short phrases only when quoting.
+## Background
+
+## Detailed Analysis
+### {subsection}
+
+## What's New / Recent Developments
+
+## Open Questions & Disagreements
+
+## Sources
+1. {url} — {one-line}
+```
+
+1200–2500 words.
+
+## Step 5 — file the dispatch
+
+```bash
+cat > /tmp/dispatch-meta <<'META'
+<TITLE>
+<REQ_IDS>
+META
+
+SLUG=dev-skills node -e '
+  const fs = require("fs");
+  const meta = fs.readFileSync("/tmp/dispatch-meta","utf8").split("\n");
+  const title = (meta[0] || "").trim();
+  const reqs = (meta[1] || "").split(",").map(s=>s.trim()).filter(Boolean);
+  const args = {
+    topic_slug: process.env.SLUG,
+    title,
+    markdown_body: fs.readFileSync("/tmp/dispatch.md","utf8"),
+  };
+  if (reqs.length) args.request_ids = reqs;
+  process.stdout.write(JSON.stringify({
+    jsonrpc: "2.0", id: 1, method: "tools/call",
+    params: { name: "save_report", arguments: args }
+  }));
+' | curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
+    -H "Authorization: Bearer $DISPATCH_TOKEN" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    --data-binary @-
+echo
+```
+
+## Step 6 — print the url
+
+Parse the response; print the `url` field. If `isError`, print the error and stop.
+
+## Writing rules
+
 - Specific beats vague. "Bun 1.2 ships native S3 client, cutting cold-start 40%" beats "tooling improved."
-- 1200–2500 words. Don't pad.
 - When queued requests exist, address each one by name.
+- 1200–2500 words. Don't pad.
 
 Don't ask clarifying questions.
