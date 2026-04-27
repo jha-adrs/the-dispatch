@@ -5,6 +5,9 @@ import { randomBytes } from 'node:crypto';
 
 import { validate, extractTitle, extractTldr, extractSources, wordCount } from './markdown.js';
 import { renderMarkdownToPdf } from './pdf.js';
+import { SECTION_POSITIONS, positionFor, utcDay } from './db.js';
+
+const SECTION_NAMES = Object.keys(SECTION_POSITIONS);
 
 const slugSchema = z
   .string()
@@ -33,7 +36,20 @@ export function buildMcpServer({ db, archive, publicBaseUrl, notifier }) {
           .string()
           .min(100)
           .max(200_000)
-          .describe('Full markdown body, starting with "# " and containing "**TL;DR:**"'),
+          .optional()
+          .describe(
+            'Full markdown body, starting with "# " and containing "**TL;DR:**". ' +
+              'Required UNLESS assemble_from_drafts is true.'
+          ),
+        assemble_from_drafts: z
+          .boolean()
+          .optional()
+          .describe(
+            'If true, the server reads all draft_sections for (topic_slug, today UTC), ' +
+              'sorts by canonical position, concatenates into markdown_body, and on success ' +
+              'deletes those drafts in the same transaction as the report insert. Use this ' +
+              'as the last step of a routine that built the briefing via append_draft_section.'
+          ),
         sources: z
           .array(z.string().url())
           .optional()
@@ -48,6 +64,69 @@ export function buildMcpServer({ db, archive, publicBaseUrl, notifier }) {
       },
     },
     async (args) => saveReport(args, { db, archive, publicBaseUrl, notifier })
+  );
+
+  server.registerTool(
+    'append_draft_section',
+    {
+      title: 'Incrementally save one section of a briefing',
+      description:
+        'UPSERTs one section of an in-progress briefing to the server, keyed by (topic_slug, today UTC, section_name). ' +
+        'Call once per section during step 4 of the routine. If a stream timeout kills the session, sections ' +
+        'already appended survive — the next run can list_draft_sections to see what was done and pick up. ' +
+        'When all sections are present, call save_report({ assemble_from_drafts: true, ... }).',
+      inputSchema: {
+        topic_slug: slugSchema,
+        section_name: z
+          .enum(SECTION_NAMES)
+          .describe(
+            'Canonical section name. Deep briefings use: header, key_findings, background, ' +
+              'analysis_1..analysis_6, whats_new, open_questions, sources. World snapshots use: ' +
+              'header, geopolitics, markets, tech_science, business_policy, science_research, ' +
+              'future_trends, finance_global, regional_asia, regional_africa, regional_latam, ' +
+              'regional_mena, offbeat, one_to_read, sources.'
+          ),
+        content: z
+          .string()
+          .min(1)
+          .max(30_000)
+          .describe('Full markdown for this section, including its own heading (## or ###).'),
+      },
+    },
+    async ({ topic_slug, section_name, content }) => {
+      const day = utcDay();
+      const now = new Date().toISOString();
+      db.stmts.upsertDraft.run({
+        slug: topic_slug,
+        day,
+        name: section_name,
+        position: positionFor(section_name),
+        content,
+        updated_at: now,
+      });
+      const stored = db.stmts
+        .listDrafts.all({ slug: topic_slug, day })
+        .map((r) => r.name);
+      return ok({ slug: topic_slug, day, section_name, stored });
+    }
+  );
+
+  server.registerTool(
+    'list_draft_sections',
+    {
+      title: 'List sections already saved for an in-progress briefing',
+      description:
+        'Returns the sections written so far for (topic_slug, today UTC). Call this at the ' +
+        'start of a routine run to detect and resume an incomplete previous run. Response is ' +
+        '{ day, sections: [{ name, position, updated_at, content_preview }] }; empty array means ' +
+        'no draft exists — start fresh.',
+      inputSchema: { topic_slug: slugSchema },
+    },
+    async ({ topic_slug }) => {
+      const day = utcDay();
+      const sections = db.stmts.listDrafts.all({ slug: topic_slug, day });
+      return ok({ day, sections });
+    }
   );
 
   server.registerTool(
@@ -116,12 +195,35 @@ export function buildMcpServer({ db, archive, publicBaseUrl, notifier }) {
 }
 
 async function saveReport(args, { db, archive, publicBaseUrl, notifier }) {
-  const v = validate(args.markdown_body);
+  // Resolve the markdown body: either the caller passed it, or assemble from
+  // draft_sections on the server.
+  let markdown_body = args.markdown_body;
+  let assembleDay = null;
+
+  if (args.assemble_from_drafts) {
+    assembleDay = utcDay();
+    const rows = db.stmts.readDraftsForAssembly.all({ slug: args.topic_slug, day: assembleDay });
+    if (rows.length === 0) {
+      return err(
+        `assemble_from_drafts: no draft sections for slug "${args.topic_slug}" today (${assembleDay}). ` +
+          'Call append_draft_section first.'
+      );
+    }
+    markdown_body = rows.map((r) => r.content.replace(/\s+$/, '')).join('\n\n') + '\n';
+  }
+
+  if (!markdown_body) {
+    return err(
+      'either markdown_body or assemble_from_drafts=true is required'
+    );
+  }
+
+  const v = validate(markdown_body);
   if (!v.ok) return err(v.reason);
 
-  const extractedTitle = extractTitle(args.markdown_body);
+  const extractedTitle = extractTitle(markdown_body);
   if (!extractedTitle) return err('could not extract title from "# " line');
-  const summary = extractTldr(args.markdown_body);
+  const summary = extractTldr(markdown_body);
 
   const id = buildReportId(args.topic_slug);
   const received_at = id.slice(0, 4) + '-' + id.slice(4, 6) + '-' + id.slice(6, 8) +
@@ -129,11 +231,11 @@ async function saveReport(args, { db, archive, publicBaseUrl, notifier }) {
 
   const sources = Array.isArray(args.sources) && args.sources.length
     ? dedupe(args.sources)
-    : extractSources(args.markdown_body);
+    : extractSources(markdown_body);
 
   let pdfBytes;
   try {
-    pdfBytes = await renderMarkdownToPdf(args.markdown_body, { title: extractedTitle });
+    pdfBytes = await renderMarkdownToPdf(markdown_body, { title: extractedTitle });
   } catch (e) {
     return err(`pdf render failed: ${e.message}`);
   }
@@ -143,20 +245,24 @@ async function saveReport(args, { db, archive, publicBaseUrl, notifier }) {
     slug: args.topic_slug,
     title: args.title,
     summary,
-    word_count: wordCount(args.markdown_body),
+    word_count: wordCount(markdown_body),
     sources_json: JSON.stringify(sources),
     received_at,
   };
 
   let fulfilled;
   try {
-    fulfilled = db.saveReportWithRequests(reportRow, args.request_ids ?? []);
+    fulfilled = db.saveReportWithRequests(
+      reportRow,
+      args.request_ids ?? [],
+      assembleDay ? { clearDraftsFor: { slug: args.topic_slug, day: assembleDay } } : {}
+    );
   } catch (e) {
     return err(`db transaction failed: ${e.message}`);
   }
 
   try {
-    archive.writeReport(id, args.markdown_body, pdfBytes);
+    archive.writeReport(id, markdown_body, pdfBytes);
   } catch (e) {
     return err(`archive write failed after db commit: ${e.message}`);
   }

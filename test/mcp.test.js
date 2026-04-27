@@ -219,3 +219,196 @@ describe('mcp integration', () => {
     expect(stored).toEqual(['https://override.example/a', 'https://override.example/b']);
   });
 });
+
+// ────────────────────────────────────────────────────────────────────────────
+// Draft sections — incremental persistence + assemble-on-save
+// ────────────────────────────────────────────────────────────────────────────
+
+describe('draft sections flow', () => {
+  let tmp, db, archive, server, client;
+
+  beforeEach(async () => {
+    tmp = mkdtempSync(join(tmpdir(), 'dispatch-test-'));
+    db = openDb(':memory:');
+    archive = createArchive(join(tmp, 'archive'));
+    server = buildMcpServer({ db, archive, publicBaseUrl: 'http://t.example' });
+    client = await wire(server);
+  });
+
+  afterEach(async () => {
+    try { await client.close(); } catch {}
+    try { await server.close(); } catch {}
+    try { db.close(); } catch {}
+    rmSync(tmp, { recursive: true, force: true });
+  });
+
+  const HEADER = '# Test Briefing\n\n**Date:** 2026-04-24\n**TL;DR:** A short summary that satisfies the contract.';
+  const KEY_FINDINGS = '## Key Findings\n\n- Finding A: https://example.com\n- Finding B';
+  const BACKGROUND = '## Background\n\nContext goes here.';
+  const SOURCES = '## Sources\n\n1. https://example.com — example';
+
+  it('list_draft_sections is empty when nothing written', async () => {
+    const res = await callTool(client, 'list_draft_sections', { topic_slug: 'test' });
+    const p = parseTextPayload(res);
+    expect(p.sections).toEqual([]);
+    expect(p.day).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('append_draft_section UPSERTs and returns stored names', async () => {
+    const r1 = parseTextPayload(await callTool(client, 'append_draft_section', {
+      topic_slug: 'test', section_name: 'header', content: HEADER,
+    }));
+    expect(r1.stored).toEqual(['header']);
+
+    const r2 = parseTextPayload(await callTool(client, 'append_draft_section', {
+      topic_slug: 'test', section_name: 'key_findings', content: KEY_FINDINGS,
+    }));
+    expect(r2.stored).toEqual(['header', 'key_findings']); // canonical position order
+
+    // rewrite the header — still 2 sections, content replaced
+    const r3 = parseTextPayload(await callTool(client, 'append_draft_section', {
+      topic_slug: 'test', section_name: 'header', content: HEADER + '\n\nextra',
+    }));
+    expect(r3.stored.sort()).toEqual(['header', 'key_findings']);
+  });
+
+  it('list_draft_sections returns content_preview in canonical order', async () => {
+    await callTool(client, 'append_draft_section', { topic_slug: 't', section_name: 'sources', content: SOURCES });
+    await callTool(client, 'append_draft_section', { topic_slug: 't', section_name: 'header', content: HEADER });
+    await callTool(client, 'append_draft_section', { topic_slug: 't', section_name: 'background', content: BACKGROUND });
+
+    const list = parseTextPayload(await callTool(client, 'list_draft_sections', { topic_slug: 't' }));
+    expect(list.sections.map((s) => s.name)).toEqual(['header', 'background', 'sources']);
+    expect(list.sections[0].content_preview.startsWith('# Test')).toBe(true);
+  });
+
+  it('save_report({assemble_from_drafts}) happy path: assembles, saves, clears', async () => {
+    await callTool(client, 'append_draft_section', { topic_slug: 'asm', section_name: 'header', content: HEADER });
+    await callTool(client, 'append_draft_section', { topic_slug: 'asm', section_name: 'key_findings', content: KEY_FINDINGS });
+    await callTool(client, 'append_draft_section', { topic_slug: 'asm', section_name: 'sources', content: SOURCES });
+
+    const res = await callTool(client, 'save_report', {
+      topic_slug: 'asm',
+      title: 'Test Briefing',
+      assemble_from_drafts: true,
+    });
+    expect(res.isError).toBeUndefined();
+    const p = parseTextPayload(res);
+    expect(p.id).toMatch(/^\d{8}T\d{6}Z_asm$/);
+
+    // drafts cleared
+    const after = parseTextPayload(await callTool(client, 'list_draft_sections', { topic_slug: 'asm' }));
+    expect(after.sections).toEqual([]);
+
+    // report persisted
+    const row = db.stmts.getReport.get(p.id);
+    expect(row.title).toBe('Test Briefing');
+    expect(row.summary).toMatch(/short summary/);
+    expect(row.sources_json).toContain('example.com');
+  });
+
+  it('save_report({assemble_from_drafts}) keeps drafts when assembled body fails validation', async () => {
+    // write sections that together LACK **TL;DR:** — validation will fail
+    await callTool(client, 'append_draft_section', {
+      topic_slug: 'bad', section_name: 'header',
+      content: '# Missing TLDR\n\n**Date:** 2026-04-24',
+    });
+    await callTool(client, 'append_draft_section', {
+      topic_slug: 'bad', section_name: 'key_findings', content: KEY_FINDINGS,
+    });
+
+    const before = db.stmts.countReports.get().n;
+    const res = await callTool(client, 'save_report', {
+      topic_slug: 'bad', title: 'Missing TLDR', assemble_from_drafts: true,
+    });
+    expect(res.isError).toBe(true);
+    // no report added
+    expect(db.stmts.countReports.get().n).toBe(before);
+    // drafts still there for next attempt
+    const still = parseTextPayload(await callTool(client, 'list_draft_sections', { topic_slug: 'bad' }));
+    expect(still.sections.length).toBe(2);
+  });
+
+  it('save_report({assemble_from_drafts}) errors when nothing drafted', async () => {
+    const res = await callTool(client, 'save_report', {
+      topic_slug: 'empty', title: 'Nothing', assemble_from_drafts: true,
+    });
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toMatch(/no draft sections/);
+  });
+
+  it('drafts are isolated per slug — two parallel briefings do not collide', async () => {
+    await callTool(client, 'append_draft_section', { topic_slug: 'one', section_name: 'header', content: HEADER });
+    await callTool(client, 'append_draft_section', { topic_slug: 'two', section_name: 'header', content: HEADER });
+
+    const r1 = parseTextPayload(await callTool(client, 'list_draft_sections', { topic_slug: 'one' }));
+    const r2 = parseTextPayload(await callTool(client, 'list_draft_sections', { topic_slug: 'two' }));
+    expect(r1.sections).toHaveLength(1);
+    expect(r2.sections).toHaveLength(1);
+
+    // finalizing one must not affect the other
+    await callTool(client, 'append_draft_section', { topic_slug: 'one', section_name: 'key_findings', content: KEY_FINDINGS });
+    await callTool(client, 'append_draft_section', { topic_slug: 'one', section_name: 'sources', content: SOURCES });
+    const saved = await callTool(client, 'save_report', { topic_slug: 'one', title: 'One', assemble_from_drafts: true });
+    expect(saved.isError).toBeUndefined();
+
+    const r2after = parseTextPayload(await callTool(client, 'list_draft_sections', { topic_slug: 'two' }));
+    expect(r2after.sections).toHaveLength(1);
+  });
+
+  it('resume flow: partial drafts + new session completes', async () => {
+    // Session A: writes header + key_findings, then dies.
+    await callTool(client, 'append_draft_section', { topic_slug: 'resume', section_name: 'header', content: HEADER });
+    await callTool(client, 'append_draft_section', { topic_slug: 'resume', section_name: 'key_findings', content: KEY_FINDINGS });
+
+    // Session B: lists what's there, writes only the missing bits.
+    const seen = parseTextPayload(await callTool(client, 'list_draft_sections', { topic_slug: 'resume' }));
+    const have = new Set(seen.sections.map((s) => s.name));
+    expect(have.has('header')).toBe(true);
+    expect(have.has('key_findings')).toBe(true);
+    expect(have.has('sources')).toBe(false);
+
+    await callTool(client, 'append_draft_section', { topic_slug: 'resume', section_name: 'background', content: BACKGROUND });
+    await callTool(client, 'append_draft_section', { topic_slug: 'resume', section_name: 'sources', content: SOURCES });
+
+    const saved = await callTool(client, 'save_report', { topic_slug: 'resume', title: 'Resume', assemble_from_drafts: true });
+    expect(saved.isError).toBeUndefined();
+    const payload = parseTextPayload(saved);
+    expect(payload.id).toMatch(/_resume$/);
+    // drafts cleared
+    const after = parseTextPayload(await callTool(client, 'list_draft_sections', { topic_slug: 'resume' }));
+    expect(after.sections).toEqual([]);
+  });
+
+  it('save_report with both markdown_body and assemble_from_drafts: assembly wins when set', async () => {
+    await callTool(client, 'append_draft_section', { topic_slug: 'both', section_name: 'header', content: HEADER });
+    await callTool(client, 'append_draft_section', { topic_slug: 'both', section_name: 'key_findings', content: KEY_FINDINGS });
+    await callTool(client, 'append_draft_section', { topic_slug: 'both', section_name: 'sources', content: SOURCES });
+
+    // Ignored body still has to pass the Zod min-100 length check; content doesn't matter
+    // because assemble_from_drafts=true overrides it before validate() runs.
+    const ignoredBody =
+      '# Ignored Body\n\n' +
+      '**TL;DR:** should be ignored because assemble wins over markdown_body input.\n' +
+      'Lorem ipsum filler to satisfy the minimum length check. '.repeat(3);
+
+    const res = await callTool(client, 'save_report', {
+      topic_slug: 'both',
+      title: 'Assembled',
+      assemble_from_drafts: true,
+      markdown_body: ignoredBody,
+    });
+    expect(res.isError).toBeUndefined();
+    const p = parseTextPayload(res);
+    const row = db.stmts.getReport.get(p.id);
+    expect(row.title).toBe('Assembled');
+    expect(row.summary).toMatch(/short summary/); // from drafts HEADER TL;DR
+    expect(row.summary).not.toMatch(/ignored/i);
+  });
+
+  it('save_report without markdown_body or assemble_from_drafts errors clearly', async () => {
+    const res = await callTool(client, 'save_report', { topic_slug: 'xx', title: 'Some title' });
+    expect(res.isError).toBe(true);
+    expect(res.content[0].text).toMatch(/markdown_body|assemble_from_drafts/);
+  });
+});
