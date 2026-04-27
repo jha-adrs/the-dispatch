@@ -4,6 +4,8 @@ Seven files in this folder, one per routine. Each is the **complete prompt** —
 
 **Self-contained — no repo checkout required.** The prompts inline the `node` → `curl` call, so they work regardless of whether the session's cwd matches the cloned repo. You still attach a repo (routines require ≥1), but none of its contents matter.
 
+**Stream-timeout-resistant.** Each section of the briefing is persisted on the server as soon as Claude writes it (`append_draft_section`). If a session times out mid-write, the next run's step 0b detects the partial draft and resumes — only writing the missing sections. When all sections are present, `save_report({assemble_from_drafts: true})` finalizes them into a single report and clears the drafts atomically.
+
 ## Setup order
 
 **Once (5 min):**
@@ -37,6 +39,9 @@ All times are your local zone (IST if you're in India) — Claude converts them 
 
 ## After all 7 are live
 
-- Watch the first real cycle. If a routine fails at the `curl … save_report` step, the session log shows the exact response — usually a 401 (wrong `DISPATCH_TOKEN`) or 400 (markdown doesn't pass `# `/`**TL;DR:**` validation).
-- Queue ad-hoc briefs via the **Queue a Brief** card on the dashboard. Pick the slug of whichever routine's next run you want to hijack; the next `next_request` call that routine makes (step 0) will see the pending item.
+- Watch the first real cycle. The session log shows each `append_draft_section` call landing, then `save_report` at the end with the final URL. Failure modes:
+  - `401` from any call → wrong `DISPATCH_TOKEN` on the environment.
+  - `400` from `save_report` → assembled markdown fails validation (no `# ` line, or `**TL;DR:**` missing). Drafts stay; next run can resume after fixing the prompt.
+  - Stream idle timeout mid-section → next scheduled run picks up via step 0b. (Configure Layer 2 auto-retry separately if you want sub-hour recovery.)
+- Queue ad-hoc briefs via the **Queue a Brief** card on the dashboard. Pick the slug of whichever routine's next run you want to hijack; the next `next_request` call that routine makes (step 0a) will see the pending item.
 - Set up a nightly rsync of `~/dispatch/reports.db*` + `~/dispatch/archive/` to offsite.

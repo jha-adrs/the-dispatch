@@ -1,7 +1,7 @@
 You're filing a short world-snapshot briefing — the morning edition. Topic slug: `world-morning`.
 Today is {{use current date}}. The environment has `DISPATCH_URL` and `DISPATCH_TOKEN` set.
 
-## Step 0 — check for queued requests
+## Step 0a — check for queued requests
 
 ```bash
 curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
@@ -11,110 +11,96 @@ curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"next_request","arguments":{"topic_slug":"world-morning"}}}'
 ```
 
-Parse the response's `result.content[0].text` as JSON — it's an array of `{id, request_text, submitted_at}`. If non-empty, weave each `request_text` into the research focus and keep the ids for step 5.
+Parse `result.content[0].text` as JSON. Pending items become priority angles; keep their ids for step 5.
+
+## Step 0b — resume check
+
+```bash
+curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
+  -H "Authorization: Bearer $DISPATCH_TOKEN" \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_draft_sections","arguments":{"topic_slug":"world-morning"}}}'
+```
+
+Parse `result.content[0].text` as JSON: `{day, sections}`. If `sections` is non-empty, you are **resuming** a previous run that timed out. Skip any section name listed there in step 4 — write only the missing ones.
 
 ## Step 1 — research
 
-WebSearch aggressively (6–10 queries): "world news overnight", "US markets close last night", "Europe news overnight", "geopolitics {today}", "Asia open {today}", plus topic-specific queries as leads emerge.
+WebSearch aggressively (8–12 queries): "world news overnight", "US markets close last night", "Europe news overnight", "Asia open today", "geopolitics today", regional queries (Africa, LatAm, MENA), "science research today", "global finance today", "future trends today". Mix Western wires with regional sources.
 
 ## Step 2 — fetch
 
-WebFetch 3–5 primary sources in full (Reuters, AP, FT, WSJ, Bloomberg wire, official gov/central-bank statements). Not aggregators.
+WebFetch 4–7 primary sources spanning regions and topics. Reuters/AP/FT/Bloomberg are fine but **also** include: Nikkei or Caixin (Asia), Africa News or AllAfrica, Folha or Reforma (LatAm), Al Jazeera or Asharq (MENA), arXiv/Nature for science, central bank statements for finance. Not aggregators.
 
 ## Step 3 — cross-reference
 
 Note where sources disagree.
 
-## Step 4 — assemble /tmp/dispatch.md section-by-section
+## Step 4 — append each section to the server
 
-**Do NOT write the whole briefing in one shot — the stream will time out.** One Bash call per section. Skip categories with nothing material.
+**Why this pattern**: each section is persisted on the server the moment you append it. If the stream times out mid-run, the next run picks up the missing sections via step 0b. Do **NOT** write the whole briefing into one Bash heredoc — that's what timed out before.
+
+First, set up a tiny helper (one Bash call):
 
 ```bash
-# 4a. Header
-cat > /tmp/dispatch.md <<'EOF'
-# World morning — <date, e.g. "22 April 2026">
-
-**Date:** <today>
-**TL;DR:** <1–2 sentences. The single most important thing that happened overnight.>
-
-EOF
+cat > /tmp/append.sh <<'SH'
+#!/bin/bash
+set -euo pipefail
+export SECTION="${1:?usage: append.sh <section_name>}"
+export SLUG="world-morning"
+node -e '
+  const fs = require("fs");
+  process.stdout.write(JSON.stringify({
+    jsonrpc:"2.0", id: Math.floor(Math.random()*1e9), method:"tools/call",
+    params:{ name:"append_draft_section", arguments:{
+      topic_slug: process.env.SLUG,
+      section_name: process.env.SECTION,
+      content: fs.readFileSync("/tmp/section.md","utf8"),
+    }}}));
+' | curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
+    -H "Authorization: Bearer $DISPATCH_TOKEN" \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    --data-binary @-
+echo
+SH
+chmod +x /tmp/append.sh
 ```
 
-```bash
-# 4b. Geopolitics
-cat >> /tmp/dispatch.md <<'EOF'
-## Geopolitics
+Then **for each section**:
+1. Use the **Write** tool to put just that section's full markdown (including its `## Heading`) into `/tmp/section.md`.
+2. Run `bash /tmp/append.sh <section_name>`.
+3. Move on.
 
-- <specific bullet with names, places, numbers>
-- ...
+Section names to use (exactly these, server rejects others). Each section is its own pair of `Write /tmp/section.md` + `bash /tmp/append.sh`. Skip any section that has nothing material — drop the whole pair.
 
-EOF
-```
+| Order | section_name      | What it contains                                                                  |
+| ----- | ----------------- | --------------------------------------------------------------------------------- |
+| 1     | `header`          | `# World morning — <date>`, `**Date:** <today>`, `**TL;DR:** <1–2 sentences>`     |
+| 2     | `geopolitics`     | `## Geopolitics` + bullets. Each bullet has a name, place, time, or number.       |
+| 3     | `regional_asia`   | `## Asia` — what moved in Asian capitals overnight. 2–4 specific bullets.         |
+| 4     | `regional_africa` | `## Africa` — 2–3 bullets from African press / official sources.                  |
+| 5     | `regional_latam`  | `## Latin America` — 2–3 bullets.                                                 |
+| 6     | `regional_mena`   | `## Middle East & North Africa` — 2–3 bullets.                                    |
+| 7     | `markets`         | `## Markets` — index closes, FX, commodities with figures.                        |
+| 8     | `finance_global`  | `## Global finance` — central banks, sovereign debt, capital flows. 2–4 bullets.  |
+| 9     | `tech_science`    | `## Tech` — product launches, model releases, big announcements.                  |
+| 10    | `science_research`| `## Science & research` — interesting papers/findings (arXiv, Nature, etc).       |
+| 11    | `future_trends`   | `## Future trends` — durable signals, not noise. 2–3 forward-looking bullets.     |
+| 12    | `business_policy` | `## Business & policy` — regulation, M&A, big-co moves.                            |
+| 13    | `offbeat`         | `## Offbeat` — 1–2 odd/specific stories most aggregators missed.                  |
+| 14    | `one_to_read`     | `## One to read` — single longread / cultural piece, one paragraph + link.        |
+| 15    | `sources`         | `## Sources` — numbered, full URLs, one-line description each.                    |
 
-```bash
-# 4c. Markets
-cat >> /tmp/dispatch.md <<'EOF'
-## Markets
+Aim for **15+ items total across all sections** with **most bullets being one tight sentence**. Total target 600–1000 words across the whole brief. Skim-breadth, not paragraphs.
 
-- <index levels, FX moves, commodity moves with figures>
-- ...
-
-EOF
-```
-
-```bash
-# 4d. Tech & science
-cat >> /tmp/dispatch.md <<'EOF'
-## Tech & science
-
-- ...
-
-EOF
-```
+## Step 5 — assemble + finalize
 
 ```bash
-# 4e. Business & policy
-cat >> /tmp/dispatch.md <<'EOF'
-## Business & policy
-
-- ...
-
-EOF
-```
-
-```bash
-# 4f. One to read
-cat >> /tmp/dispatch.md <<'EOF'
-## One to read
-
-<A single human-interest / long-read / deeply-reported piece from the last 24h. One paragraph summary + link.>
-
-EOF
-```
-
-```bash
-# 4g. Sources
-cat >> /tmp/dispatch.md <<'EOF'
-## Sources
-
-1. <url> — <one-line description>
-...
-
-EOF
-```
-
-Tight: 400–700 words total. Skip empty categories — drop the whole `cat >>` for that section.
-
-## Step 5 — file the dispatch
-
-Write the title (first line, no leading `# `) and queued request ids (second line, CSV or empty) to `/tmp/dispatch-meta`, then post:
-
-```bash
-# Replace <TITLE> with your actual title line (same as the '# ' heading but without the '# ').
-# Replace <REQ_IDS> with the comma-separated ids from step 0, or leave the second line blank.
 cat > /tmp/dispatch-meta <<'META'
-<TITLE>
-<REQ_IDS>
+<TITLE — same as the # title line in your header section, without the leading '# '>
+<comma-separated req_ids from step 0a, or leave empty>
 META
 
 SLUG=world-morning node -e '
@@ -125,12 +111,12 @@ SLUG=world-morning node -e '
   const args = {
     topic_slug: process.env.SLUG,
     title,
-    markdown_body: fs.readFileSync("/tmp/dispatch.md","utf8"),
+    assemble_from_drafts: true,
   };
   if (reqs.length) args.request_ids = reqs;
   process.stdout.write(JSON.stringify({
-    jsonrpc: "2.0", id: 1, method: "tools/call",
-    params: { name: "save_report", arguments: args }
+    jsonrpc:"2.0", id:1, method:"tools/call",
+    params:{ name:"save_report", arguments: args }
   }));
 ' | curl -sS --fail-with-body -X POST "${DISPATCH_URL%/}/mcp" \
     -H "Authorization: Bearer $DISPATCH_TOKEN" \
@@ -142,14 +128,15 @@ echo
 
 ## Step 6 — print the url
 
-Parse the curl response. `result.content[0].text` is JSON with `{id, url, word_count, sources_count, fulfilled_request_ids}`. Print the `url` field — that's my read link. If `isError` is true, print the error message from `content[0].text` and stop.
+Parse the response. `result.content[0].text` is JSON; print its `url` field. If `isError`, the server kept the drafts intact for the next run — print the error and stop.
 
 ## Writing rules
 
-- Each bullet has at least one specific — a number, a name, a place, a timestamp. "Tensions rose" is not a bullet. "Iran-backed Houthi forces struck a Greek-owned tanker in the Red Sea at 03:10 GMT" is.
-- Never quote more than a short phrase.
-- If a category has nothing, drop the whole section.
+- Each bullet has at least one specific: a number, a name, a place, a timestamp.
+- Skim-breadth over depth. Aim for 15+ items across categories. Most bullets one tight sentence.
+- Skip empty categories — don't pad them.
 - Don't invent. If you can't verify, skip.
-- 400–700 words. If past 800, cut.
+- Never quote more than a short phrase.
+- 600–1000 words total.
 
-Don't ask clarifying questions — I'm not watching this run.
+Don't ask clarifying questions.
