@@ -4,6 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { openDb } from '../src/db.js';
+import {
+  mintShareToken,
+  clearShareTokenFor,
+  lookupByShareToken,
+} from '../src/share.js';
 
 const SAMPLE_REPORT = {
   id: '20260429T120000Z_test',
@@ -112,5 +117,63 @@ describe('migration safety', () => {
     expect(row.title).toBe('Legacy');
     expect(row.share_token).toBeNull();
     db.close();
+  });
+});
+
+describe('share token helpers', () => {
+  let db;
+  beforeEach(() => { db = openDb(':memory:'); });
+  afterEach(() => { try { db.close(); } catch {} });
+
+  it('mintShareToken issues a 32-hex token and stores it', () => {
+    const id = seedReport(db);
+    const token = mintShareToken(db, id);
+    expect(token).toMatch(/^[a-f0-9]{32}$/);
+    expect(db.stmts.getReport.get(id).share_token).toBe(token);
+  });
+
+  it('mintShareToken returns the existing token if already set', () => {
+    const id = seedReport(db);
+    const first = mintShareToken(db, id);
+    const second = mintShareToken(db, id);
+    expect(second).toBe(first);
+  });
+
+  it('mintShareToken returns null for unknown id', () => {
+    expect(mintShareToken(db, 'no_such_id')).toBeNull();
+  });
+
+  it('clearShareTokenFor sets the row back to NULL', () => {
+    const id = seedReport(db);
+    mintShareToken(db, id);
+    const ok = clearShareTokenFor(db, id);
+    expect(ok).toBe(true);
+    expect(db.stmts.getReport.get(id).share_token).toBeNull();
+  });
+
+  it('clearShareTokenFor returns true even if already NULL (idempotent)', () => {
+    const id = seedReport(db);
+    expect(clearShareTokenFor(db, id)).toBe(true);
+  });
+
+  it('clearShareTokenFor returns false for unknown id', () => {
+    expect(clearShareTokenFor(db, 'no_such_id')).toBe(false);
+  });
+
+  it('lookupByShareToken returns row for valid token', () => {
+    const id = seedReport(db);
+    const token = mintShareToken(db, id);
+    const row = lookupByShareToken(db, token);
+    expect(row?.id).toBe(id);
+  });
+
+  it('lookupByShareToken returns null for malformed token (no DB hit)', () => {
+    expect(lookupByShareToken(db, 'not-hex')).toBeNull();
+    expect(lookupByShareToken(db, 'a'.repeat(31))).toBeNull(); // too short
+    expect(lookupByShareToken(db, 'a'.repeat(33))).toBeNull(); // too long
+  });
+
+  it('lookupByShareToken returns null for unknown but well-formed token', () => {
+    expect(lookupByShareToken(db, 'f'.repeat(32))).toBeNull();
   });
 });
