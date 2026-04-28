@@ -8,10 +8,13 @@ CREATE TABLE IF NOT EXISTS reports (
   summary      TEXT,
   word_count   INTEGER NOT NULL,
   sources_json TEXT NOT NULL,
-  received_at  TEXT NOT NULL
+  received_at  TEXT NOT NULL,
+  share_token  TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_reports_slug_received
   ON reports(slug, received_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_reports_share_token
+  ON reports(share_token) WHERE share_token IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS requests (
   id                   TEXT PRIMARY KEY,
@@ -89,7 +92,21 @@ export function openDb(dbPath) {
   const db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
+
+  // Idempotent migration for installs that pre-date share_token. Must run
+  // before SCHEMA exec because SCHEMA's partial unique index references
+  // share_token, which would fail on a legacy reports table.
+  const legacyCols = db
+    .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='reports'`)
+    .get()
+    ? db.prepare(`PRAGMA table_info(reports)`).all()
+    : null;
+  if (legacyCols && !legacyCols.find((c) => c.name === 'share_token')) {
+    db.exec(`ALTER TABLE reports ADD COLUMN share_token TEXT`);
+  }
+
   db.exec(SCHEMA);
+
   return buildApi(db);
 }
 
@@ -107,7 +124,7 @@ function buildApi(db) {
       LIMIT @limit
     `),
     getReport: db.prepare(`
-      SELECT id, slug, title, summary, word_count, sources_json, received_at
+      SELECT id, slug, title, summary, word_count, sources_json, received_at, share_token
       FROM reports WHERE id = ?
     `),
     countReports: db.prepare(`SELECT COUNT(*) AS n FROM reports`),
@@ -121,6 +138,17 @@ function buildApi(db) {
       WHERE (@slug IS NULL OR slug = @slug)
       ORDER BY received_at DESC
       LIMIT @limit OFFSET @offset
+    `),
+
+    setShareToken: db.prepare(`
+      UPDATE reports SET share_token = @token WHERE id = @id
+    `),
+    clearShareToken: db.prepare(`
+      UPDATE reports SET share_token = NULL WHERE id = @id
+    `),
+    getReportByShareToken: db.prepare(`
+      SELECT id, slug, title, summary, word_count, sources_json, received_at, share_token
+      FROM reports WHERE share_token = ?
     `),
 
     insertRequest: db.prepare(`
