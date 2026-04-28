@@ -10,6 +10,7 @@ import { buildMcpServer, buildMcpTransport } from './mcp.js';
 import { mcpAuthMiddleware } from './auth.js';
 import { buildApiRouter } from './api.js';
 import { buildNotifier } from './notify.js';
+import { buildRetry, parseFireMap } from './retry.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -28,6 +29,9 @@ const env = {
   NOTIFY_WEBHOOK_URL: process.env.NOTIFY_WEBHOOK_URL || '',
   NOTIFY_WEBHOOK_TYPE: process.env.NOTIFY_WEBHOOK_TYPE || 'generic',
   NOTIFY_WEBHOOK_HEADERS: process.env.NOTIFY_WEBHOOK_HEADERS || '',
+  ROUTINE_FIRE_MAP: process.env.ROUTINE_FIRE_MAP || '',
+  RETRY_AFTER_MINUTES: parseInt(process.env.RETRY_AFTER_MINUTES || '60', 10),
+  MAX_RETRIES_PER_DAY: parseInt(process.env.MAX_RETRIES_PER_DAY || '2', 10),
 };
 
 function required(name) {
@@ -50,6 +54,14 @@ async function main() {
   if (notifier.enabled) {
     console.log(`[dispatch] notify webhook: ${env.NOTIFY_WEBHOOK_URL.slice(0, 40)}… (type=${notifier.type})`);
   }
+
+  const retry = buildRetry({
+    db,
+    fireMap: parseFireMap(env.ROUTINE_FIRE_MAP),
+    retryAfterMinutes: env.RETRY_AFTER_MINUTES,
+    maxRetriesPerDay: env.MAX_RETRIES_PER_DAY,
+  });
+  retry.start();
 
   const app = express();
   app.disable('x-powered-by');
@@ -133,6 +145,7 @@ async function main() {
 
   const shutdown = (sig) => {
     console.log(`[dispatch] ${sig} → shutting down`);
+    retry.stop();
     server.close(() => {
       try { db.close(); } catch {}
       process.exit(0);

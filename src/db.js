@@ -37,6 +37,17 @@ CREATE TABLE IF NOT EXISTS draft_sections (
 );
 CREATE INDEX IF NOT EXISTS idx_draft_sections_slug_day
   ON draft_sections(slug, day);
+
+CREATE TABLE IF NOT EXISTS retry_fires (
+  slug      TEXT NOT NULL,
+  day       TEXT NOT NULL,
+  fired_at  TEXT NOT NULL,        -- ISO-8601 timestamp of the /fire POST
+  ok        INTEGER NOT NULL,     -- 1 if HTTP OK, 0 otherwise
+  detail    TEXT                  -- session_id on success, error/status on failure
+);
+-- ROWID is the implicit PK; we never look up by (slug,day,fired_at) directly.
+CREATE INDEX IF NOT EXISTS idx_retry_fires_slug_day
+  ON retry_fires(slug, day);
 `;
 
 // Canonical order used when assembling a report from drafts. Sections outside
@@ -170,10 +181,18 @@ function buildApi(db) {
       WHERE slug = @slug AND day = @day
     `),
     staleDraftDays: db.prepare(`
-      SELECT slug, day, MAX(updated_at) AS last_update
+      SELECT slug, day, MAX(updated_at) AS last_update, COUNT(*) AS section_count
       FROM draft_sections
       GROUP BY slug, day
       HAVING last_update < @cutoff
+    `),
+
+    insertRetryFire: db.prepare(`
+      INSERT INTO retry_fires (slug, day, fired_at, ok, detail)
+      VALUES (@slug, @day, @fired_at, @ok, @detail)
+    `),
+    countFiresForDay: db.prepare(`
+      SELECT COUNT(*) AS n FROM retry_fires WHERE slug = @slug AND day = @day
     `),
   };
 
