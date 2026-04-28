@@ -66,15 +66,15 @@ For each section: **Write** tool puts that section's markdown (including its `##
 
 | Order | section_name      | What it contains                                                                  |
 | ----- | ----------------- | --------------------------------------------------------------------------------- |
-| 1     | `header`          | `# <descriptive title>`, `**Date:** <today>`, `**TL;DR:** <2–3 sentences>`        |
-| 2     | `key_findings`    | `## Key Findings` + 5–8 bullets with specifics (numbers, names, dates)            |
-| 3     | `background`      | `## Background` — 1–2 paragraphs of context                                       |
-| 4..N  | `analysis_1`..`analysis_6` | Each ### subsection of Detailed Analysis as its own section. Use as many `analysis_N` slots as you have subsections (1–6) |
-| N+1   | `whats_new`       | `## What's New / Recent Developments`                                             |
-| N+2   | `open_questions`  | `## Open Questions & Disagreements`                                               |
-| last  | `sources`         | `## Sources` — numbered, full URLs, one-line description each                     |
+| 1     | `header`          | `# <descriptive title>`, `**Date:** <today>`, `**TL;DR:** <3–5 sentences capturing the whole brief>` |
+| 2     | `key_findings`    | `## Key Findings` + 8–12 bullets with specifics (numbers, names, dates, version numbers, benchmark scores) |
+| 3     | `background`      | `## Background` — 2–3 paragraphs of context, history, who's involved              |
+| 4..9  | `analysis_1`..`analysis_6` | Each ### subsection of Detailed Analysis as its own section. **Aim for at least 4 subsections** — pick angles like: technical details, eval results, ecosystem impact, comparison vs. predecessors, code-level patterns, who's adopting it. Each subsection 250–500 words. |
+| 10    | `whats_new`       | `## What's New / Recent Developments` — what changed in the last 7–14 days, with dates |
+| 11    | `open_questions`  | `## Open Questions & Disagreements` — 3–5 substantive open threads               |
+| 12    | `sources`         | `## Sources` — numbered, full URLs, one-line description each. **Aim for 8+ sources.** |
 
-Target 1200–2500 words across all sections combined.
+**Target 2500–4500 words across all sections combined.** Substantive depth per section, not padding. Each individual section should stay under ~800 words so per-section streaming stays comfortable.
 
 ## Step 5 — assemble + finalize
 
@@ -112,7 +112,7 @@ Parse the response. `result.content[0].text` is JSON; print the `url`. On `isErr
 - Specific beats vague: "Framework X released v0.4.0 with async tool-routing" beats "frameworks improved."
 - Quote at most short phrases. Write in your own words.
 - When queued requests exist, address each by name in the briefing.
-- Skip empty sections; don't pad.
-- 1200–2500 words.
+- Skip empty sections; don't pad — but DO go deep where the material warrants. Use multiple analysis subsections.
+- **2500–4500 words total.** Aim toward the upper end when the topic has substance; only land near the floor on slow news days.
 
 Don't ask clarifying questions.

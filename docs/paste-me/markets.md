@@ -60,20 +60,22 @@ chmod +x /tmp/append.sh
 
 For each: Write to `/tmp/section.md`, then `bash /tmp/append.sh <section_name>`.
 
-| section_name       | content                                                                       |
-| ------------------ | ----------------------------------------------------------------------------- |
-| `header`           | `# Indian markets close — <today> (<descriptor>)`, Date, `**TL;DR:**`         |
-| `key_findings`     | Index closes %, gainers/losers, FII/DII ₹X cr, headline macro item            |
-| `background`       | `## Background`                                                               |
-| `analysis_1`       | `### Index moves` — magnitude, breadth, sectoral leaders                      |
-| `analysis_2`       | `### Sector rotation`                                                         |
-| `analysis_3`       | `### Flows & derivatives`                                                     |
-| `analysis_4`       | `### Macro & policy` — RBI, INR, crude, US-cues if material                  |
-| `whats_new`        | `## What's New / Recent Developments`                                         |
-| `open_questions`   | `## Open Questions & Disagreements`                                           |
-| `sources`          | `## Sources`                                                                  |
+| section_name       | content                                                                                          |
+| ------------------ | ------------------------------------------------------------------------------------------------ |
+| `header`           | `# Indian markets close — <today> (<descriptor>)`, Date, `**TL;DR:** <3–5 sentences>`            |
+| `key_findings`     | 10–14 bullets: index closes %, top 5 gainers/losers, sectoral moves, FII/DII ₹X cr, INR, crude, headline macro |
+| `background`       | `## Background` — 2–3 paragraphs                                                                 |
+| `analysis_1`       | `### Index moves` — magnitude, breadth, sectoral leaders, 250–500 words                          |
+| `analysis_2`       | `### Sector rotation` — what's leading, what's lagging, why                                      |
+| `analysis_3`       | `### Flows & derivatives` — FII/DII detail, options OI, futures basis                            |
+| `analysis_4`       | `### Macro & policy` — RBI, INR, crude, US-cues, bond yields                                     |
+| `analysis_5`       | `### Earnings & corporate` — notable Q4 results, guidance, M&A if relevant                       |
+| `analysis_6`       | `### Global context` — US/Europe/Asia close that fed today's sentiment                            |
+| `whats_new`        | `## What's New / Recent Developments` — past 7 days with dates                                   |
+| `open_questions`   | `## Open Questions & Disagreements` — 3–5 substantive open threads                              |
+| `sources`          | `## Sources` — 8+ numbered sources with URLs                                                     |
 
-Skip subsections with nothing material. Target 1200–2500 words total.
+Skip subsections with nothing material; otherwise use them all. **Target 2500–4500 words total.** Each section ≤ 800 words.
 
 ## Step 5 — assemble + finalize
 
@@ -110,6 +112,6 @@ Print the `url`. On `isError`, drafts kept — print error and stop.
 
 - Numbers always. "Nifty closed 24,250, down 0.8%" beats "markets fell."
 - ₹ figures in crores. INR level if material.
-- 1200–2500 words. Skip empty sections.
+- **2500–4500 words.** Use all six analysis subsections when there's material; skip ones that are genuinely empty. Don't pad.
 
 Don't ask clarifying questions.

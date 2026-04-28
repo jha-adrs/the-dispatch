@@ -86,7 +86,7 @@ For each section: **Write** tool puts the section's markdown (including `## Head
 | 14    | `one_to_read`      | `## One to read` — single longread + link                                     |
 | 15    | `sources`          | `## Sources` — numbered                                                       |
 
-Skip categories with nothing material. **15+ items total**, most bullets one tight sentence. 600–1000 words.
+Skip categories with nothing material. **25–35+ items total**, most bullets one tight sentence (some 2–3 when context helps). **Target 1200–2000 words.**
 
 ## Step 5 — assemble + finalize
 
@@ -122,9 +122,9 @@ Parse the response; print the `url`. On `isError`, drafts are kept for next run 
 ## Writing rules
 
 - Each bullet has a specific (number/name/place/time).
-- Skim-breadth: 15+ items, most one sentence.
+- Skim-breadth: **25–35+ items**, most one sentence; some 2–3 when context helps.
 - Skip empty categories.
 - Don't invent.
-- 600–1000 words total.
+- **1200–2000 words total.**
 
 Don't ask clarifying questions.

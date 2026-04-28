@@ -93,7 +93,7 @@ Section names to use (exactly these, server rejects others). Each section is its
 | 14    | `one_to_read`     | `## One to read` — single longread / cultural piece, one paragraph + link.        |
 | 15    | `sources`         | `## Sources` — numbered, full URLs, one-line description each.                    |
 
-Aim for **15+ items total across all sections** with **most bullets being one tight sentence**. Total target 600–1000 words across the whole brief. Skim-breadth, not paragraphs.
+Aim for **25–35+ items total across all sections** with **most bullets being one tight sentence (some can be 2–3)**. **Target 1200–2000 words across the whole brief.** Skim-breadth with enough specificity per item to be useful — names, numbers, places, timestamps in every bullet.
 
 ## Step 5 — assemble + finalize
 
@@ -133,10 +133,10 @@ Parse the response. `result.content[0].text` is JSON; print its `url` field. If 
 ## Writing rules
 
 - Each bullet has at least one specific: a number, a name, a place, a timestamp.
-- Skim-breadth over depth. Aim for 15+ items across categories. Most bullets one tight sentence.
+- Skim-breadth over depth. **Aim for 25–35+ items across categories.** Most bullets one tight sentence; some 2–3 when context helps.
 - Skip empty categories — don't pad them.
 - Don't invent. If you can't verify, skip.
 - Never quote more than a short phrase.
-- 600–1000 words total.
+- **1200–2000 words total.**
 
 Don't ask clarifying questions.

@@ -62,17 +62,17 @@ chmod +x /tmp/append.sh
 
 For each section: **Write** to `/tmp/section.md`, then `bash /tmp/append.sh <section_name>`.
 
-| section_name             | content                                                            |
-| ------------------------ | ------------------------------------------------------------------ |
-| `header`                 | `# <title>`, `**Date:**`, `**TL;DR:**`                             |
-| `key_findings`           | `## Key Findings` + 5–8 specific bullets                           |
-| `background`             | `## Background`                                                    |
-| `analysis_1`..`analysis_4` | Each ### subsection of Detailed Analysis as its own section       |
-| `whats_new`              | `## What's New / Recent Developments`                              |
-| `open_questions`         | `## Open Questions & Disagreements`                                |
-| `sources`                | `## Sources`                                                       |
+| section_name             | content                                                                    |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `header`                 | `# <title>`, `**Date:**`, `**TL;DR:** <3–5 sentences>`                     |
+| `key_findings`           | `## Key Findings` + 8–12 specific bullets (versions, perf numbers, dates)  |
+| `background`             | `## Background` — 2–3 paragraphs                                           |
+| `analysis_1`..`analysis_6` | Each ### subsection. **Aim for 4+ subsections.** Each 250–500 words. Suggested angles: language/runtime updates, build & deploy tooling, observability, testing, infra, dev workflow, editor/AI tooling. |
+| `whats_new`              | `## What's New / Recent Developments` — last 7–14 days with dates          |
+| `open_questions`         | `## Open Questions & Disagreements` — 3–5 substantive open threads         |
+| `sources`                | `## Sources` — numbered, full URLs. **Aim for 8+ sources.**                |
 
-Target 1200–2500 words total.
+**Target 2500–4500 words total.** Each section stays under ~800 words to keep per-section streaming comfortable.
 
 ## Step 5 — assemble + finalize
 
@@ -109,6 +109,6 @@ Print the `url` from the response. On `isError`, drafts kept — print error and
 
 - Specific: "Bun 1.2 ships native S3 client, cutting cold-start 40%" beats "tooling improved."
 - When queued requests exist, address each by name.
-- 1200–2500 words. Skip empty sections.
+- **2500–4500 words.** Go deep on substantive material; don't pad on slow weeks. Use multiple analysis subsections.
 
 Don't ask clarifying questions.

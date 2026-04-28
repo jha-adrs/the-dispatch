@@ -60,20 +60,22 @@ chmod +x /tmp/append.sh
 
 For each: Write to `/tmp/section.md`, then `bash /tmp/append.sh <section_name>`.
 
-| section_name      | content                                                                |
-| ----------------- | ---------------------------------------------------------------------- |
-| `header`          | `# <descriptive title — biggest thing today>`, Date, `**TL;DR:**`     |
-| `key_findings`    | 5–8 bullets with company names, figures, dates                         |
-| `background`      | `## Background`                                                        |
-| `analysis_1`      | `### Model & product releases`                                         |
-| `analysis_2`      | `### Capital & deals`                                                  |
-| `analysis_3`      | `### Policy & regulation`                                              |
-| `analysis_4`      | `### Workforce & org`                                                  |
-| `whats_new`       | `## What's New / Recent Developments`                                  |
-| `open_questions`  | `## Open Questions & Disagreements`                                    |
-| `sources`         | `## Sources`                                                           |
+| section_name      | content                                                                                          |
+| ----------------- | ------------------------------------------------------------------------------------------------ |
+| `header`          | `# <descriptive title — biggest thing today>`, Date, `**TL;DR:** <3–5 sentences>`                |
+| `key_findings`    | 8–12 bullets with company names, dollar figures, dates, model names, benchmark scores            |
+| `background`      | `## Background` — 2–3 paragraphs                                                                 |
+| `analysis_1`      | `### Model & product releases` — capabilities, benchmarks, pricing, availability                 |
+| `analysis_2`      | `### Capital & deals` — funding rounds with $ + valuation, M&A, IPOs                             |
+| `analysis_3`      | `### Policy & regulation` — EU, US, China moves; lawsuits; safety frameworks                     |
+| `analysis_4`      | `### Workforce & org` — hires/exits at top labs, restructures                                    |
+| `analysis_5`      | `### Infrastructure & compute` — chip supply, data centers, energy, cloud partnerships           |
+| `analysis_6`      | `### Open-source & research` — major OSS releases, key papers, evals                             |
+| `whats_new`       | `## What's New / Recent Developments` — past 7 days with dates                                   |
+| `open_questions`  | `## Open Questions & Disagreements` — 3–5 substantive threads                                   |
+| `sources`         | `## Sources` — 8+ primary sources                                                                |
 
-Skip subsections with nothing material. Target 1200–2500 words total.
+Skip subsections with nothing material; otherwise use them all. **Target 2500–4500 words total.** Each section ≤ 800 words.
 
 ## Step 5 — assemble + finalize
 
@@ -110,6 +112,6 @@ Print the `url`. On `isError`, drafts kept — print error and stop.
 
 - Company names in full on first mention. Dollar figures with unit ($2.1B not "$2.1").
 - Distinguish announcements from shipped products.
-- 1200–2500 words. Skip empty sections.
+- **2500–4500 words.** Use all six analysis subsections when there's material; the AI/tech beat usually has it.
 
 Don't ask clarifying questions.

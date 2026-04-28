@@ -60,17 +60,17 @@ chmod +x /tmp/append.sh
 
 For each: Write to `/tmp/section.md`, then `bash /tmp/append.sh <section_name>`.
 
-| section_name       | content                                                                       |
-| ------------------ | ----------------------------------------------------------------------------- |
-| `header`           | `# <a concrete claim or question, not "personal improvement this week">`, Date, `**TL;DR:**` |
-| `key_findings`     | 5–8 bullets with effect sizes, n, duration                                    |
-| `background`       | `## Background`                                                               |
-| `analysis_1`..`analysis_4` | Each ### subsection                                                  |
-| `whats_new`        | `## What's New / Recent Developments`                                         |
-| `open_questions`   | `## Open Questions & Disagreements` — health research is noisy, this section matters here |
-| `sources`          | `## Sources`                                                                  |
+| section_name       | content                                                                                                |
+| ------------------ | ------------------------------------------------------------------------------------------------------ |
+| `header`           | `# <a concrete claim or question, not "personal improvement this week">`, Date, `**TL;DR:** <3–5 sentences>` |
+| `key_findings`     | 8–12 bullets with effect sizes, n, duration, study population                                          |
+| `background`       | `## Background` — 2–3 paragraphs of context (existing literature, why this question matters)            |
+| `analysis_1`..`analysis_6` | Each ### subsection. **Aim for 4+ subsections.** Suggested angles: methodology breakdown, mechanism of action, dose-response, populations studied, conflicting prior work, practical translation, measurement & self-experimentation. Each 250–500 words. |
+| `whats_new`        | `## What's New / Recent Developments` — recent papers, retractions, replications                       |
+| `open_questions`   | `## Open Questions & Disagreements` — health research is noisy. **5–8 substantive threads here.**     |
+| `sources`          | `## Sources` — 8+ numbered. Prefer primary papers + researcher posts over secondary coverage.          |
 
-Target 1200–2500 words total.
+**Target 2500–4500 words total.** Each section ≤ 800 words.
 
 ## Step 5 — assemble + finalize
 
@@ -108,6 +108,6 @@ Print the `url`. On `isError`, drafts kept — print error and stop.
 - Skeptical by default. Flag small-n, unblinded, industry-funded.
 - Effect sizes as numbers ("0.34 Cohen's d"), not vibes.
 - Actionable: smallest thing a reader could try this week?
-- 1200–2500 words.
+- **2500–4500 words.** Methodology and open questions get substantial space here — health research deserves the depth.
 
 Don't ask clarifying questions.
