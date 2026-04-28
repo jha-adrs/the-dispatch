@@ -8,6 +8,8 @@ import {
   mintShareToken,
   clearShareTokenFor,
   lookupByShareToken,
+  renderSharePage,
+  renderRevokedPage,
 } from '../src/share.js';
 
 const SAMPLE_REPORT = {
@@ -175,5 +177,82 @@ describe('share token helpers', () => {
 
   it('lookupByShareToken returns null for unknown but well-formed token', () => {
     expect(lookupByShareToken(db, 'f'.repeat(32))).toBeNull();
+  });
+});
+
+describe('renderSharePage', () => {
+  const report = {
+    id: '20260429T120000Z_test',
+    slug: 'markets',
+    title: 'Markets close 29 Apr — RBI focus',
+    summary: 'Nifty closed 24,250, down 0.8%. Governor flagged sticky food inflation.',
+    word_count: 1234,
+    received_at: '2026-04-29T12:00:00Z',
+    share_token: 'a'.repeat(32),
+  };
+  const markdown = '# Markets close 29 Apr — RBI focus\n\n**TL;DR:** ...\n\n## Key Findings\n\n- ...';
+  const html = renderSharePage({ report, markdown, publicBaseUrl: 'https://dispatch.platinumj.xyz' });
+
+  it('returns a string starting with <!doctype html>', () => {
+    expect(html).toMatch(/^<!doctype html>/i);
+  });
+
+  it('includes the report title in <title>', () => {
+    expect(html).toMatch(/<title>Markets close 29 Apr — RBI focus[^<]*<\/title>/);
+  });
+
+  it('emits a noindex robots meta tag', () => {
+    expect(html).toMatch(/<meta name="robots" content="noindex/);
+  });
+
+  it('emits Open Graph + Twitter Card meta tags', () => {
+    expect(html).toMatch(/<meta property="og:title" content="Markets close 29 Apr — RBI focus"/);
+    expect(html).toMatch(/<meta property="og:description" content="Nifty closed 24,250/);
+    expect(html).toMatch(/<meta property="og:url" content="https:\/\/dispatch\.platinumj\.xyz\/s\/a{32}"/);
+    expect(html).toMatch(/<meta property="og:type" content="article"/);
+    expect(html).toMatch(/<meta name="twitter:card" content="summary"/);
+  });
+
+  it('embeds the markdown in a script[type="text/markdown"] tag', () => {
+    expect(html).toMatch(/<script id="md" type="text\/markdown">/);
+    expect(html).toContain('# Markets close 29 Apr');
+  });
+
+  it('escapes </script> inside the markdown so it cannot break out', () => {
+    const evil = '# Title\n\n</script><script>alert(1)</script>\n';
+    const out = renderSharePage({ report, markdown: evil, publicBaseUrl: 'https://x' });
+    expect(out).not.toContain('</script><script>alert(1)</script>');
+    expect(out).toContain('<\\/script>'); // escaped form
+  });
+
+  it('escapes HTML special chars in the title and summary', () => {
+    const r = { ...report, title: 'A & B <c> "d"', summary: 'tldr & <stuff>' };
+    const out = renderSharePage({ report: r, markdown: '# x', publicBaseUrl: 'https://x' });
+    expect(out).toContain('A &amp; B &lt;c&gt; &quot;d&quot;');
+    expect(out).toContain('tldr &amp; &lt;stuff&gt;');
+  });
+
+  it('includes PDF and Markdown download links keyed off the share token', () => {
+    expect(html).toContain('href="/s/' + 'a'.repeat(32) + '/pdf"');
+    expect(html).toContain('href="/s/' + 'a'.repeat(32) + '/md"');
+  });
+
+  it('includes a footer with filed date and the public base host', () => {
+    expect(html).toMatch(/Filed by Claude on \d{1,2} April 2026/);
+    expect(html).toContain('dispatch.platinumj.xyz');
+  });
+});
+
+describe('renderRevokedPage', () => {
+  it('returns 404 page HTML with masthead but no article', () => {
+    const html = renderRevokedPage({ publicBaseUrl: 'https://dispatch.platinumj.xyz' });
+    expect(html).toMatch(/^<!doctype html>/i);
+    expect(html).toMatch(/Link no longer active/i);
+    expect(html).not.toContain('<script id="md"');
+  });
+
+  it('includes noindex meta tag', () => {
+    const html = renderRevokedPage({ publicBaseUrl: 'https://x' });
+    expect(html).toMatch(/<meta name="robots" content="noindex/);
   });
 });
