@@ -217,23 +217,23 @@ export function publicShareHandlers({ db, archive, publicBaseUrl }) {
       return res.status(200).send(renderSharePage({ report: row, markdown, publicBaseUrl }));
     },
     pdf(req, res) {
+      res.setHeader('X-Robots-Tag', 'noindex,nofollow');
       const token = req.params?.token;
       const row = lookupByShareToken(db, token);
       if (!row) return res.status(404).send('not found');
       const pdf = archive.readPdf(row.id);
       if (!pdf) return res.status(410).send('archive missing');
-      res.setHeader('X-Robots-Tag', 'noindex,nofollow');
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `inline; filename="${row.id}.pdf"`);
       return res.send(pdf);
     },
     md(req, res) {
+      res.setHeader('X-Robots-Tag', 'noindex,nofollow');
       const token = req.params?.token;
       const row = lookupByShareToken(db, token);
       if (!row) return res.status(404).send('not found');
       const markdown = archive.readMarkdown(row.id);
       if (markdown === null) return res.status(410).send('archive missing');
-      res.setHeader('X-Robots-Tag', 'noindex,nofollow');
       res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
       res.setHeader('Content-Disposition', `inline; filename="${row.id}.md"`);
       return res.send(markdown);

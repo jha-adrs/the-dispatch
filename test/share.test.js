@@ -415,4 +415,28 @@ describe('publicShareHandlers (no auth)', () => {
     expect(res.headers['content-type']).toBe('text/markdown; charset=utf-8');
     expect(res.body).toContain('# Title');
   });
+
+  it('GET /s/:token/pdf sets X-Robots-Tag on 404', () => {
+    const res = fakeRes();
+    handlers.pdf({ params: { token: 'f'.repeat(32) } }, res);
+    expect(res.statusCode).toBe(404);
+    expect(res.headers['x-robots-tag']).toBe('noindex,nofollow');
+  });
+
+  it('GET /s/:token/md sets X-Robots-Tag on 404', () => {
+    const res = fakeRes();
+    handlers.md({ params: { token: 'f'.repeat(32) } }, res);
+    expect(res.statusCode).toBe(404);
+    expect(res.headers['x-robots-tag']).toBe('noindex,nofollow');
+  });
+
+  it('GET /s/:token/pdf sets X-Robots-Tag on 410 (archive missing)', () => {
+    const id = seedReport(db);
+    const token = mintShareToken(db, id);
+    // archive._seedPdf not called — readPdf returns null
+    const res = fakeRes();
+    handlers.pdf({ params: { token } }, res);
+    expect(res.statusCode).toBe(410);
+    expect(res.headers['x-robots-tag']).toBe('noindex,nofollow');
+  });
 });
