@@ -116,6 +116,16 @@ Routines are created at [claude.ai/code/routines](https://claude.ai/code/routine
 
 Point any MCP-speaking HTTPS client (local Claude Code, another cloud agent, a cron-driven curl) at `https://<your-host>/mcp` with `Authorization: Bearer <MCP_CLIENT_TOKEN>`. The server logs the client label (`MCP_CLIENT_NAME`) with every tool call so you can tell them apart.
 
+## Sharing individual reports publicly
+
+The dashboard is private (basic-auth), but any single report can be exposed via an opt-in shareable link. Open a report in the reader overlay, click **Share**, and copy the URL — anyone with that URL can read the report at `https://<your-host>/s/<32-hex-token>`. The page is the broadsheet treatment, no sidebar, and includes Open Graph / Twitter Card meta tags so previews look good in Slack/iMessage/Twitter.
+
+Click **Revoke** to clear the token; old URLs 404 immediately. Re-clicking Share mints a new, unrelated token. There is no expiry or per-recipient ACL — possession of the URL is the capability.
+
+Search engines: every public share page sets `X-Robots-Tag: noindex,nofollow` and the equivalent meta, so leaked links don't get indexed.
+
+Note on trust: the public page renders the report's markdown client-side via `marked` from CDN. Briefings are authored by Claude on your routines, not by adversarial inputs, but if you ever paste untrusted markdown into a report you'd be trusting `marked`'s default sanitization. Worth knowing.
+
 ## Env vars
 
 See [`.env.example`](./.env.example). All required:
