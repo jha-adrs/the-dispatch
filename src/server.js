@@ -129,7 +129,7 @@ async function main() {
     return dashboardAuth(req, res, next);
   });
 
-  app.use(buildApiRouter({ db, archive }));
+  app.use(buildApiRouter({ db, archive, publicBaseUrl: env.PUBLIC_BASE_URL }));
   app.use(express.static(join(ROOT, 'public'), { index: 'index.html', maxAge: '5m' }));
 
   // SPA deep link: /report/:id  (no .pdf/.md suffix) → serve SPA shell.

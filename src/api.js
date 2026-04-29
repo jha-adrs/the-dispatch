@@ -1,8 +1,10 @@
 import express from 'express';
 import { newRequestId } from './mcp.js';
+import { shareApiHandlers } from './share.js';
 
-export function buildApiRouter({ db, archive }) {
+export function buildApiRouter({ db, archive, publicBaseUrl }) {
   const router = express.Router();
+  const share = shareApiHandlers({ db, publicBaseUrl });
 
   router.get('/api/stats', (req, res) => {
     const { n } = db.stmts.countReports.get();
@@ -51,7 +53,17 @@ export function buildApiRouter({ db, archive }) {
     if (markdown === null) {
       return res.status(410).json({ error: 'archive file missing' });
     }
-    res.json({ ...row, markdown });
+    res.json({
+      id: row.id,
+      slug: row.slug,
+      title: row.title,
+      summary: row.summary,
+      word_count: row.word_count,
+      sources_json: row.sources_json,
+      received_at: row.received_at,
+      share_token: row.share_token ?? null,
+      markdown,
+    });
   });
 
   router.get('/report/:id.pdf', (req, res) => {
@@ -75,6 +87,9 @@ export function buildApiRouter({ db, archive }) {
     );
     res.send(md);
   });
+
+  router.post('/api/reports/:id/share', express.json(), share.create);
+  router.delete('/api/reports/:id/share', share.revoke);
 
   router.get('/api/requests', (req, res) => {
     const status = req.query.status || null;
