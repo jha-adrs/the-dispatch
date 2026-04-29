@@ -9,6 +9,7 @@ import { createArchive } from './archive.js';
 import { buildMcpServer, buildMcpTransport } from './mcp.js';
 import { mcpAuthMiddleware } from './auth.js';
 import { buildApiRouter } from './api.js';
+import { publicShareHandlers } from './share.js';
 import { buildNotifier } from './notify.js';
 import { buildRetry, parseFireMap } from './retry.js';
 
@@ -114,6 +115,16 @@ async function main() {
       .json({ jsonrpc: '2.0', error: { code: -32000, message: 'method not allowed' }, id: null });
   });
 
+  // Public share routes — no auth, gated only by knowledge of the token.
+  const publicShare = publicShareHandlers({
+    db,
+    archive,
+    publicBaseUrl: env.PUBLIC_BASE_URL,
+  });
+  app.get('/s/:token', publicShare.html);
+  app.get('/s/:token/pdf', publicShare.pdf);
+  app.get('/s/:token/md', publicShare.md);
+
   // Dashboard + JSON APIs: basic-auth.
   const dashboardAuth = basicAuth({
     users: { [env.DASHBOARD_USER]: env.DASHBOARD_PASS },
@@ -123,7 +134,12 @@ async function main() {
   app.use('/api', dashboardAuth);
   app.use('/report', dashboardAuth);
   app.use('/', (req, res, next) => {
-    if (req.path.startsWith('/mcp') || req.path.startsWith('/api') || req.path.startsWith('/report')) {
+    if (
+      req.path.startsWith('/mcp') ||
+      req.path.startsWith('/api') ||
+      req.path.startsWith('/report') ||
+      req.path.startsWith('/s/')
+    ) {
       return next();
     }
     return dashboardAuth(req, res, next);
