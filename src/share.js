@@ -178,6 +178,69 @@ ${FONTS_LINK}
 </html>`;
 }
 
+export function shareApiHandlers({ db, publicBaseUrl }) {
+  const base = String(publicBaseUrl).replace(/\/+$/, '');
+  return {
+    create(req, res) {
+      const id = req.params?.id;
+      const token = mintShareToken(db, id);
+      if (token === null) {
+        return res.status(404).json({ error: 'report not found' });
+      }
+      return res.status(200).json({ token, url: `${base}/s/${token}` });
+    },
+    revoke(req, res) {
+      const id = req.params?.id;
+      const ok = clearShareTokenFor(db, id);
+      if (!ok) {
+        return res.status(404).json({ error: 'report not found' });
+      }
+      return res.status(200).json({ revoked: true });
+    },
+  };
+}
+
+export function publicShareHandlers({ db, archive, publicBaseUrl }) {
+  return {
+    html(req, res) {
+      const token = req.params?.token;
+      const row = lookupByShareToken(db, token);
+      res.setHeader('X-Robots-Tag', 'noindex,nofollow');
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      if (!row) {
+        return res.status(404).send(renderRevokedPage({ publicBaseUrl }));
+      }
+      const markdown = archive.readMarkdown(row.id);
+      if (markdown === null) {
+        return res.status(410).send(renderRevokedPage({ publicBaseUrl }));
+      }
+      return res.status(200).send(renderSharePage({ report: row, markdown, publicBaseUrl }));
+    },
+    pdf(req, res) {
+      const token = req.params?.token;
+      const row = lookupByShareToken(db, token);
+      if (!row) return res.status(404).send('not found');
+      const pdf = archive.readPdf(row.id);
+      if (!pdf) return res.status(410).send('archive missing');
+      res.setHeader('X-Robots-Tag', 'noindex,nofollow');
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${row.id}.pdf"`);
+      return res.send(pdf);
+    },
+    md(req, res) {
+      const token = req.params?.token;
+      const row = lookupByShareToken(db, token);
+      if (!row) return res.status(404).send('not found');
+      const markdown = archive.readMarkdown(row.id);
+      if (markdown === null) return res.status(410).send('archive missing');
+      res.setHeader('X-Robots-Tag', 'noindex,nofollow');
+      res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+      res.setHeader('Content-Disposition', `inline; filename="${row.id}.md"`);
+      return res.send(markdown);
+    },
+  };
+}
+
 export function renderRevokedPage({ publicBaseUrl }) {
   const base = String(publicBaseUrl).replace(/\/+$/, '');
   return `<!doctype html>

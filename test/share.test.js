@@ -10,6 +10,8 @@ import {
   lookupByShareToken,
   renderSharePage,
   renderRevokedPage,
+  shareApiHandlers,
+  publicShareHandlers,
 } from '../src/share.js';
 
 const SAMPLE_REPORT = {
@@ -254,5 +256,163 @@ describe('renderRevokedPage', () => {
   it('includes noindex meta tag', () => {
     const html = renderRevokedPage({ publicBaseUrl: 'https://x' });
     expect(html).toMatch(/<meta name="robots" content="noindex/);
+  });
+});
+
+function fakeRes() {
+  const res = {
+    statusCode: 200,
+    headers: {},
+    body: undefined,
+    setHeader(k, v) { this.headers[k.toLowerCase()] = v; },
+    status(code) { this.statusCode = code; return this; },
+    json(o) { this.headers['content-type'] = 'application/json'; this.body = JSON.stringify(o); return this; },
+    send(s) { this.body = s; return this; },
+    end() { return this; },
+  };
+  return res;
+}
+
+function fakeArchive() {
+  const md = new Map();
+  const pdf = new Map();
+  return {
+    readMarkdown: (id) => md.get(id) ?? null,
+    readPdf: (id) => pdf.get(id) ?? null,
+    _seedMarkdown: (id, s) => md.set(id, s),
+    _seedPdf: (id, b) => pdf.set(id, b),
+  };
+}
+
+describe('shareApiHandlers (basic-auth API)', () => {
+  let db, archive, handlers;
+  const baseUrl = 'https://dispatch.platinumj.xyz';
+
+  beforeEach(() => {
+    db = openDb(':memory:');
+    archive = fakeArchive();
+    handlers = shareApiHandlers({ db, publicBaseUrl: baseUrl });
+  });
+  afterEach(() => { try { db.close(); } catch {} });
+
+  it('POST /share creates a token and returns the public URL', () => {
+    const id = seedReport(db);
+    const res = fakeRes();
+    handlers.create({ params: { id } }, res);
+    expect(res.statusCode).toBe(200);
+    const body = JSON.parse(res.body);
+    expect(body.token).toMatch(/^[a-f0-9]{32}$/);
+    expect(body.url).toBe(`${baseUrl}/s/${body.token}`);
+  });
+
+  it('POST /share is idempotent — re-call returns same token', () => {
+    const id = seedReport(db);
+    const r1 = fakeRes(); handlers.create({ params: { id } }, r1);
+    const r2 = fakeRes(); handlers.create({ params: { id } }, r2);
+    expect(JSON.parse(r1.body).token).toBe(JSON.parse(r2.body).token);
+  });
+
+  it('POST /share returns 404 for unknown report', () => {
+    const res = fakeRes();
+    handlers.create({ params: { id: 'no-such-id' } }, res);
+    expect(res.statusCode).toBe(404);
+    expect(JSON.parse(res.body).error).toMatch(/not found/);
+  });
+
+  it('DELETE /share clears the token (idempotent)', () => {
+    const id = seedReport(db);
+    handlers.create({ params: { id } }, fakeRes()); // mint
+    const res = fakeRes();
+    handlers.revoke({ params: { id } }, res);
+    expect(res.statusCode).toBe(200);
+    expect(JSON.parse(res.body).revoked).toBe(true);
+    expect(db.stmts.getReport.get(id).share_token).toBeNull();
+  });
+
+  it('DELETE /share on already-clear report returns 200', () => {
+    const id = seedReport(db);
+    const res = fakeRes();
+    handlers.revoke({ params: { id } }, res);
+    expect(res.statusCode).toBe(200);
+  });
+
+  it('DELETE /share returns 404 for unknown report', () => {
+    const res = fakeRes();
+    handlers.revoke({ params: { id: 'no-such-id' } }, res);
+    expect(res.statusCode).toBe(404);
+  });
+});
+
+describe('publicShareHandlers (no auth)', () => {
+  let db, archive, handlers;
+
+  beforeEach(() => {
+    db = openDb(':memory:');
+    archive = fakeArchive();
+    handlers = publicShareHandlers({ db, archive, publicBaseUrl: 'https://x' });
+  });
+  afterEach(() => { try { db.close(); } catch {} });
+
+  it('GET /s/:token renders HTML with the article markdown', () => {
+    const id = seedReport(db);
+    const token = mintShareToken(db, id);
+    archive._seedMarkdown(id, '# Hello\n\n**TL;DR:** test\n');
+    const res = fakeRes();
+    handlers.html({ params: { token } }, res);
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toMatch(/text\/html/);
+    expect(res.headers['x-robots-tag']).toBe('noindex,nofollow');
+    expect(res.body).toContain('<script id="md"');
+    expect(res.body).toContain('# Hello');
+  });
+
+  it('GET /s/:token returns 404 + revoked HTML for unknown token', () => {
+    const res = fakeRes();
+    handlers.html({ params: { token: 'f'.repeat(32) } }, res);
+    expect(res.statusCode).toBe(404);
+    expect(res.body).toMatch(/Link no longer active/);
+  });
+
+  it('GET /s/:token returns 404 for malformed token (no DB hit)', () => {
+    const res = fakeRes();
+    handlers.html({ params: { token: 'not-hex' } }, res);
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('GET /s/:token returns 410 if archive markdown is missing', () => {
+    const id = seedReport(db);
+    const token = mintShareToken(db, id);
+    // archive._seedMarkdown not called — readMarkdown returns null
+    const res = fakeRes();
+    handlers.html({ params: { token } }, res);
+    expect(res.statusCode).toBe(410);
+  });
+
+  it('GET /s/:token/pdf streams PDF for valid token', () => {
+    const id = seedReport(db);
+    const token = mintShareToken(db, id);
+    archive._seedPdf(id, Buffer.from('%PDF-1.7 fake'));
+    const res = fakeRes();
+    handlers.pdf({ params: { token } }, res);
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toBe('application/pdf');
+    expect(res.headers['content-disposition']).toMatch(/inline; filename=/);
+  });
+
+  it('GET /s/:token/pdf returns 404 for unknown token', () => {
+    const res = fakeRes();
+    handlers.pdf({ params: { token: 'f'.repeat(32) } }, res);
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('GET /s/:token/md streams markdown for valid token', () => {
+    const id = seedReport(db);
+    const token = mintShareToken(db, id);
+    archive._seedMarkdown(id, '# Title\n\n**TL;DR:** body\n');
+    const res = fakeRes();
+    handlers.md({ params: { token } }, res);
+    expect(res.statusCode).toBe(200);
+    expect(res.headers['content-type']).toBe('text/markdown; charset=utf-8');
+    expect(res.body).toContain('# Title');
   });
 });
