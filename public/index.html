@@ -192,6 +192,38 @@
   .reader-bar button { background: transparent; border: none; color: var(--ink); cursor: pointer; font-family: var(--mono); font-size: 11px; letter-spacing: .15em; text-transform: uppercase; }
   .reader-bar .actions { display: flex; gap: 18px; }
   .reader-bar a { color: var(--ink); text-decoration: none; border-bottom: 1px dotted rgba(0,0,0,.4); padding-bottom: 1px; }
+
+  /* Share panel inside the reader overlay */
+  .share-panel {
+    margin: 18px 0;
+    padding: 14px 18px;
+    border: 1px dashed rgba(0,0,0,.4);
+    background: rgba(255,255,255,.4);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink);
+    display: none;
+  }
+  .share-panel.open { display: block; }
+  .share-panel .url {
+    display: block;
+    margin: 6px 0 10px;
+    word-break: break-all;
+    color: var(--red);
+  }
+  .share-panel button {
+    background: var(--ink); color: var(--paper); border: none;
+    padding: 6px 10px; font-family: inherit; font-size: 11px;
+    text-transform: uppercase; letter-spacing: .12em; cursor: pointer;
+    margin-right: 8px;
+  }
+  .share-panel button.secondary {
+    background: transparent; color: var(--ink);
+    border: 1px solid rgba(0,0,0,.4);
+  }
+  .share-panel .toast {
+    margin-left: 8px; color: #3b6a1a; font-style: italic;
+  }
   .reader-body {
     font-family: var(--serif); font-size: 18px; line-height: 1.65; color: var(--ink);
   }
@@ -278,6 +310,13 @@
       <button id="reader-close" aria-label="Close reader">← Back</button>
       <div class="actions" id="reader-actions"></div>
     </div>
+    <div class="share-panel" id="share-panel">
+      <div>Anyone with this link can read this dispatch:</div>
+      <code class="url" id="share-url"></code>
+      <button id="share-copy">Copy</button>
+      <button id="share-revoke" class="secondary">Revoke</button>
+      <span class="toast" id="share-toast"></span>
+    </div>
     <article class="reader-body" id="reader-body"></article>
   </div>
 </div>
@@ -292,6 +331,7 @@ const state = {
   filter: null,
   lastPollOk: true,
 };
+let currentReport = null;
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -452,16 +492,89 @@ function heroHtml(r) {
 async function openReader(id) {
   try {
     const r = await fetchJson(`/api/report/${id}`);
+    currentReport = r;
     $('#reader-body').innerHTML = marked.parse(r.markdown);
-    $('#reader-actions').innerHTML = `
-      <a href="/report/${id}.pdf">⬇ PDF</a>
-      <a href="/report/${id}.md">Markdown</a>
-      <span style="font-family:var(--mono); font-size:11px; color:var(--muted);">${r.slug}</span>`;
+    renderReaderActions(r);
+    renderSharePanel(r);
     $('#reader').classList.add('open');
     window.scrollTo({ top: 0, behavior: 'instant' });
     history.pushState({ reader: id }, '', `/report/${id}`);
   } catch (e) {
     alert('Could not open report: ' + e.message);
+  }
+}
+
+function renderReaderActions(r) {
+  $('#reader-actions').innerHTML = `
+    <a href="/report/${r.id}.pdf">⬇ PDF</a>
+    <a href="/report/${r.id}.md">Markdown</a>
+    <a href="#" id="reader-share">${r.share_token ? 'Manage share' : 'Share'}</a>
+    <span style="font-family:var(--mono); font-size:11px; color:var(--muted);">${r.slug}</span>
+  `;
+  $('#reader-share').addEventListener('click', (e) => {
+    e.preventDefault();
+    if (currentReport.share_token) {
+      $('#share-panel').classList.toggle('open');
+    } else {
+      mintShare(currentReport.id);
+    }
+  });
+}
+
+function renderSharePanel(r) {
+  const panel = $('#share-panel');
+  if (r.share_token) {
+    const url = `${location.origin}/s/${r.share_token}`;
+    $('#share-url').textContent = url;
+    panel.classList.add('open');
+  } else {
+    panel.classList.remove('open');
+    $('#share-url').textContent = '';
+  }
+  $('#share-toast').textContent = '';
+}
+
+async function mintShare(reportId) {
+  try {
+    const r = await fetch(`/api/reports/${reportId}/share`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const { token } = await r.json();
+    currentReport.share_token = token;
+    renderReaderActions(currentReport);
+    renderSharePanel(currentReport);
+  } catch (e) {
+    alert('Could not create share link: ' + e.message);
+  }
+}
+
+async function copyShare() {
+  const url = $('#share-url').textContent;
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    const t = $('#share-toast'); t.textContent = 'Copied'; setTimeout(() => { t.textContent = ''; }, 1500);
+  } catch {
+    alert('Clipboard write failed. Copy manually: ' + url);
+  }
+}
+
+async function revokeShare() {
+  if (!currentReport?.id) return;
+  try {
+    const r = await fetch(`/api/reports/${currentReport.id}/share`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    currentReport.share_token = null;
+    renderReaderActions(currentReport);
+    renderSharePanel(currentReport);
+  } catch (e) {
+    alert('Could not revoke: ' + e.message);
   }
 }
 function closeReader() {
@@ -472,6 +585,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && $('#reader').classList.contains('open')) closeReader();
 });
 $('#reader-close').addEventListener('click', closeReader);
+$('#share-copy').addEventListener('click', copyShare);
+$('#share-revoke').addEventListener('click', revokeShare);
 window.addEventListener('popstate', () => {
   if (!location.pathname.startsWith('/report/')) {
     $('#reader').classList.remove('open');
